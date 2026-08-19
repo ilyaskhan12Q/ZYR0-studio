@@ -5,7 +5,7 @@
 
 ### Build websites & web apps through natural language conversations with agentic AI
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 [![Version](https://img.shields.io/badge/Version-0.1.0-blue)](./CHANGELOG.md)
 [![Node](https://img.shields.io/badge/Node-%3E%3D20-green.svg)](https://nodejs.org)
 
@@ -29,29 +29,6 @@ Whether you need a static landing page, a component-driven React/Vue/Svelte appl
 - **Full In-Browser IDE** — Monaco code editor, live hot-reload preview, file explorer, multi-tab support, and interactive terminal
 - **Deploy & Export Anywhere** — Export as clean ZIP archives, standalone `.oswt` templates, or full-history `.osws` backups
 - **Self-Hosted Server Mode** — Multi-user workspaces, serverless QuickJS Edge Functions, SQLite per-deployment databases, secrets management, SEO controls, and automated Caddy custom domain routing
-
----
-
-## 🚀 Quick Start
-
-Get started in **3 steps**:
-
-```bash
-# 1. Clone repository
-git clone https://github.com/ilyaskhan/zyr0-studio.git
-cd zyr0-studio
-
-# 2. Install dependencies
-npm install
-
-# 3. Start development server
-npm run dev
-```
-
-**Start Building:**
-1. Open [http://localhost:3000](http://localhost:3000)
-2. Click **Settings** (gear icon) → Select your preferred AI provider (or connect local Ollama/LM Studio) → Enter API Key
-3. Create a project and describe what you want to build!
 
 ---
 
@@ -108,4 +85,4 @@ Contributions, issues, and feature requests are welcome!
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.

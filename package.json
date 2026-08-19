@@ -4,7 +4,7 @@
   "description": "Build websites and web apps through natural language conversations with agentic AI",
   "author": "Ilyas Khan <ik7408008@gmail.com>",
   "private": true,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
