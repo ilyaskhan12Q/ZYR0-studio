@@ -192,7 +192,7 @@ export async function analyzeImport(
         path: entry.path,
         code: 'path-rejected',
         message:
-          `${entry.path} is in a folder OSW Studio manages itself, and a project archive does ` +
+          `${entry.path} is in a folder ZYR0 Studio manages itself, and a project archive does ` +
           'not carry it, so it was not imported.',
       });
       continue;
@@ -391,7 +391,7 @@ function detectWrongFormat(
       format: 'osws-backup',
       path: '/backup.json',
       message:
-        'This is a full OSW Studio backup (.osws), not a project archive. Restore it from the ' +
+        'This is a full ZYR0 Studio backup (.osws), not a project archive. Restore it from the ' +
         'backup importer instead.',
     };
   }
@@ -400,7 +400,7 @@ function detectWrongFormat(
       format: 'oswt-template',
       path: '/template.json',
       message:
-        'This is an OSW Studio template (.oswt), not a project archive. Import it from the ' +
+        'This is an ZYR0 Studio template (.oswt), not a project archive. Import it from the ' +
         'template manager instead.',
     };
   }

@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 const PREVIEW_HTML = `<!DOCTYPE html>
 <html><head>
 <script>
-// Console Capture - Auto-injected by OSW Studio
+// Console Capture - Auto-injected by ZYR0 Studio
 (function() { var levels = ['log']; })();
 </script>
 <script>

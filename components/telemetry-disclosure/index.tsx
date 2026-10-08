@@ -42,22 +42,13 @@ export function TelemetryDisclosure({ open, onDismiss }: TelemetryDisclosureProp
         <DialogHeader>
           <DialogTitle>Anonymous Usage Analytics</DialogTitle>
           <DialogDescription>
-            Open Source Web Studio collects anonymous usage analytics to help improve the app
+            ZYR0 Studio collects anonymous usage analytics to help improve the app
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed overflow-y-auto min-h-0 -mx-1 px-1">
           <p className="text-sm">
-            Built with{' '}
-            <a
-              href="https://github.com/o-stahl/osw-analytics"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-orange-500/20 text-orange-400 hover:text-orange-300 px-1 py-0.5 rounded no-underline"
-            >
-              osw-analytics
-            </a>
-            , an open-source approach to analytics.
+            Privacy-focused, lightweight anonymous metrics with zero personal data collection.
           </p>
 
           <Collapsible>

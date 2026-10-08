@@ -34,7 +34,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'static',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['starter', 'basic', 'website']
     }
@@ -49,7 +49,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'handlebars',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['handlebars', 'starter', 'website']
     }
@@ -63,7 +63,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'handlebars',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'website',
       tags: ['portfolio', 'multi-page', 'example']
     },
@@ -105,7 +105,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'static',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'website',
       tags: ['business', 'local', 'one-page', 'services'],
     },
@@ -154,7 +154,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'static',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'website',
       tags: ['portfolio', 'cv', 'resume', 'personal'],
     },
@@ -203,7 +203,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     hasBackendFeatures: true,
     metadata: {
       intent: 'app',
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       tags: ['landing-page', 'contact-form', 'server-mode'],
     },
     promptSuggestions: [
@@ -244,7 +244,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'static',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'workspace',
       tags: ['wiki', 'research', 'notes', 'knowledge-base'],
     },
@@ -300,7 +300,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'vue',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'workspace',
       tags: ['tasks', 'projects', 'planning', 'board'],
     },
@@ -342,7 +342,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'static',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'app',
       tags: ['map', 'locations', 'embeddable', 'leaflet'],
     },
@@ -384,7 +384,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'static',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'app',
       tags: ['chat', 'widget', 'embeddable', 'no-backend'],
     },
@@ -427,7 +427,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     updatedAt: BUILT_IN_EPOCH,
     hasBackendFeatures: true,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'app',
       tags: ['ai', 'chat', 'server-mode', 'secrets'],
     },
@@ -467,7 +467,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'react',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['react', 'typescript', 'starter']
     }
@@ -481,7 +481,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'react',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'app',
       tags: ['react', 'typescript', 'demo']
     },
@@ -522,7 +522,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'preact',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['preact', 'typescript', 'starter']
     }
@@ -537,7 +537,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'svelte',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['svelte', 'starter']
     }
@@ -551,7 +551,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'vue',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['vue', 'starter']
     }
@@ -566,7 +566,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'python',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['python', 'starter', 'scripting']
     }
@@ -580,7 +580,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'lua',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'starter',
       tags: ['lua', 'starter', 'scripting']
     }
@@ -598,7 +598,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     runtime: 'static',
     updatedAt: BUILT_IN_EPOCH,
     metadata: {
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       intent: 'project-kit',
       tags: ['spring-boot', 'java', 'postgresql', 'rest-api', 'project-kit'],
     },
@@ -641,7 +641,7 @@ const TEMPLATE_DEFINITIONS: BuiltInTemplateDefinition[] = [
     hasBackendFeatures: true,
     metadata: {
       intent: 'website',
-      author: 'OSW Studio',
+      author: 'ZYR0 Studio',
       tags: ['blog', 'comments', 'auth', 'server-mode'],
     },
     promptSuggestions: [

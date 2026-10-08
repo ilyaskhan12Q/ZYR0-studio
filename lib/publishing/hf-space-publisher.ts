@@ -62,7 +62,7 @@ export async function publishToSpace(
   onProgress?.({ phase: 'uploading' });
   await commit({
     repo,
-    title: 'Update from OSW Studio',
+    title: 'Update from ZYR0 Studio',
     operations,
     accessToken: opts.accessToken,
   });

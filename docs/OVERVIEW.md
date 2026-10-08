@@ -1,8 +1,8 @@
-# Welcome to OSW Studio
+# Welcome to ZYR0 Studio
 
 **Build websites by chatting with AI. No coding required.**
 
-OSW Studio is a browser-based development environment where you describe what you want, and AI builds it for you. Create complete websites with HTML, CSS, and JavaScript through natural conversation.
+ZYR0 Studio is a browser-based development environment where you describe what you want, and AI builds it for you. Create complete websites with HTML, CSS, and JavaScript through natural conversation.
 
 ## What You Can Build
 
@@ -67,4 +67,4 @@ Ready to build your first website?
 
 - **[FAQ](?doc=faq)** - Common questions answered
 - **[Troubleshooting](?doc=troubleshooting)** - Fix common issues
-- **[GitHub](https://github.com/o-stahl/osw-studio)** - Report bugs or request features
+- **[GitHub](https://github.com/ilyaskhan/zyr0-studio)** - Report bugs or request features

@@ -70,7 +70,7 @@ function ensureCallbackServer(): Promise<void> {
       const flow = state ? flows.get(state) : undefined;
       if (!flow || Date.now() >= flow.expiresAt) {
         response.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-        response.end(callbackPage(false, 'Login expired or state did not match. Return to OSW Studio and try again.'));
+        response.end(callbackPage(false, 'Login expired or state did not match. Return to ZYR0 Studio and try again.'));
         return;
       }
 
@@ -78,18 +78,18 @@ function ensureCallbackServer(): Promise<void> {
       if (!code) {
         flow.result = { error: url.searchParams.get('error_description') || 'OpenAI did not return an authorization code' };
         response.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-        response.end(callbackPage(false, 'OpenAI did not authorize OSW Studio. Return to the app and try again.'));
+        response.end(callbackPage(false, 'OpenAI did not authorize ZYR0 Studio. Return to the app and try again.'));
         return;
       }
 
       try {
         flow.result = await exchangeCode(code, flow.verifier);
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        response.end(callbackPage(true, 'You can close this window and return to OSW Studio.'));
+        response.end(callbackPage(true, 'You can close this window and return to ZYR0 Studio.'));
       } catch (error) {
         flow.result = { error: error instanceof Error ? error.message : 'Token exchange failed' };
         response.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
-        response.end(callbackPage(false, 'OSW Studio could not create the session. Return to the app and try again.'));
+        response.end(callbackPage(false, 'ZYR0 Studio could not create the session. Return to the app and try again.'));
       }
     });
 

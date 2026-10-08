@@ -88,8 +88,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: 'tour', label: 'Guided Tour', icon: Info, action: 'start-tour' },
   { id: 'tester', label: 'Benchmark', icon: TestTube, path: '/test-generation' },
   { id: 'about', label: 'About', icon: Info, action: 'open-about' },
-  { id: 'discord', label: 'Discord', icon: DiscordIcon, href: 'https://discord.gg/mAJ8Ss4u' },
-  { id: 'github', label: 'GitHub', icon: Github, href: 'https://github.com/o-stahl/osw-studio' },
+  { id: 'github', label: 'GitHub', icon: Github, href: 'https://github.com/ilyaskhan/zyr0-studio' },
 ];
 
 const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL;
@@ -404,7 +403,7 @@ function SidebarContent({
         {!collapsed && (
           <div className="flex flex-col">
             <span className="text-sm font-semibold whitespace-nowrap leading-none">
-              {logoHover && !pinned ? "Pin" : "Open\u00A0Source Web\u00A0Studio"}
+              {logoHover && !pinned ? "Pin" : "ZYR0-Studio"}
             </span>
             {!(logoHover && !pinned) && (
               <span className="text-[10px] leading-[10px] text-muted-foreground text-left mt-0.5">

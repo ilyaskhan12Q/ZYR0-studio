@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { stripPreviewScripts } from '../strip-preview-scripts';
 
 const consoleCapture = `<script>
-// Console Capture - Auto-injected by OSW Studio
+// Console Capture - Auto-injected by ZYR0 Studio
 (function() {
   if (window === window.parent) return;
   var levels = ['log', 'warn', 'error'];

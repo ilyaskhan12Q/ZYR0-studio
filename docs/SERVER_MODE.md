@@ -1,12 +1,12 @@
 # Server Mode - Self-Hosting Guide
 
-Self-host OSW Studio with persistence, authentication, and static site publishing.
+Self-host ZYR0 Studio with persistence, authentication, and static site publishing.
 
 ---
 
 ## Overview
 
-OSW Studio supports two deployment modes:
+ZYR0 Studio supports two deployment modes:
 
 - **Browser Mode** (default): Pure client-side application using IndexedDB
 - **Server Mode**: Full-stack deployment with publishing
@@ -116,7 +116,7 @@ In Server Mode, the AI gains awareness of your deployment's backend features thr
 
 ### How It Works
 
-When you select a deployment from the **Deployment Selector** dropdown (in the workspace header), OSW Studio:
+When you select a deployment from the **Deployment Selector** dropdown (in the workspace header), ZYR0 Studio:
 1. Loads that deployment's backend features (edge functions, database schema, server functions, secrets)
 2. Mounts them as transient files in `/.server/`
 3. Informs the AI about these capabilities in its system prompt
@@ -171,7 +171,7 @@ Server Mode uses a hybrid storage approach: projects are edited locally in the b
 When you save a project in Server Mode, it automatically syncs to the server. You'll see a brief "Project synced" notification.
 
 **Automatic Pull (on load):**
-When you open the Project Manager, OSW Studio checks for any updates from the server and pulls them automatically. Projects that exist on the server but not locally are downloaded.
+When you open the Project Manager, ZYR0 Studio checks for any updates from the server and pulls them automatically. Projects that exist on the server but not locally are downloaded.
 
 **Manual Sync:**
 For bulk operations or troubleshooting, use the Sync button in the sidebar. This opens a dialog where you can:
@@ -198,7 +198,7 @@ For bulk operations or troubleshooting, use the Sync button in the sidebar. This
 
 **Steps:**
 
-1. Download the installer for your platform from [GitHub Releases](https://github.com/o-stahl/osw-studio/releases)
+1. Download the installer for your platform from [GitHub Releases](https://github.com/ilyaskhan/zyr0-studio/releases)
 2. Install and launch — authentication is bypassed for the single local user
 3. Published sites are served locally at `http://localhost:3000/deployments/{id}/`
 
@@ -221,7 +221,7 @@ For bulk operations or troubleshooting, use the Sync button in the sidebar. This
 2. **New Project:**
    - Click "New Project"
    - Select "Deploy from GitHub repo"
-   - Choose your OSW Studio fork
+   - Choose your ZYR0 Studio fork
 
 3. **Configure Variables:**
    - Go to project variables

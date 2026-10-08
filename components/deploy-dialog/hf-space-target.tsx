@@ -337,7 +337,7 @@ export function HFSpaceTarget({ projectId, onClose }: { projectId: string; onClo
 
           <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="hf-footer">&quot;Built with OSW Studio&quot; footer</Label>
+              <Label htmlFor="hf-footer">&quot;Built with ZYR0 Studio&quot; footer</Label>
               <p className="text-xs text-muted-foreground">Adds a small attribution footer to your site</p>
             </div>
             <Switch

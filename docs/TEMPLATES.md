@@ -180,7 +180,7 @@ Pages you publish and people read.
 
 #### Example Studios
 
-A multi-page agency portfolio showing OSW Studio's capabilities.
+A multi-page agency portfolio showing ZYR0 Studio's capabilities.
 
 **Includes:**
 - Multiple HTML pages with Handlebars partials
@@ -188,7 +188,7 @@ A multi-page agency portfolio showing OSW Studio's capabilities.
 - Responsive design with modern CSS
 - Interactive elements (portfolio gallery, contact form)
 
-**Best for**: Learning how OSW Studio works, understanding Handlebars partials
+**Best for**: Learning how ZYR0 Studio works, understanding Handlebars partials
 
 #### Business Website
 
@@ -404,7 +404,7 @@ A layered Spring Boot and PostgreSQL service: controller, service, domain, JPA a
 - `AGENTS.md` and `docs/architecture.md`, which travel with the repository
 - A project overview page as the preview
 
-**OSWS cannot build or run Java.** There is no Maven, Docker or PostgreSQL here, so nothing in the project has been compiled or tested. The preview is an informational page saying so, and the instructions tell the assistant to never claim it verified anything. Download the project and run it with Maven.
+**ZYR0 Studio cannot build or run Java.** There is no Maven, Docker or PostgreSQL here, so nothing in the project has been compiled or tested. The preview is an informational page saying so, and the instructions tell the assistant to never claim it verified anything. Download the project and run it with Maven.
 
 **Best for**: Starting a Spring Boot service with its structure and conventions already decided
 
@@ -426,7 +426,7 @@ A layered Spring Boot and PostgreSQL service: controller, service, domain, JPA a
 
 Your project opens with all template files ready to customize.
 
-**Backend templates in Server Mode:** When you create a project from a backend template, OSW Studio automatically syncs the project to the server, creates a deployment, and provisions all backend features (database tables, edge functions, server functions, secret placeholders). You'll see a summary of what was provisioned.
+**Backend templates in Server Mode:** When you create a project from a backend template, ZYR0 Studio automatically syncs the project to the server, creates a deployment, and provisions all backend features (database tables, edge functions, server functions, secret placeholders). You'll see a summary of what was provisioned.
 
 ### Customize the Template
 

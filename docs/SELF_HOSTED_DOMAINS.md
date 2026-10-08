@@ -1,6 +1,6 @@
 # Self-Hosted Domain Routing
 
-Guide for OSW Studio operators running their own instances.
+Guide for ZYR0 Studio operators running their own instances.
 
 ## Deployment Serving
 

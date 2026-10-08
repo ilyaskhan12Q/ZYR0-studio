@@ -1,6 +1,6 @@
 # Multitenancy
 
-OSW Studio server mode supports workspaces and multiple users on a single instance. Workspaces are the primary unit of organization and isolation. Users are granted access to workspaces with roles.
+ZYR0 Studio server mode supports workspaces and multiple users on a single instance. Workspaces are the primary unit of organization and isolation. Users are granted access to workspaces with roles.
 
 ## Concepts
 
@@ -23,7 +23,7 @@ All workspace members have the same capabilities within a workspace.
 
 ### How it fits together
 
-An agency running OSWS might set up:
+An agency running ZYR0 Studio might set up:
 - A workspace per client (e.g., "Sweet Candies", "Nordic Bikes")
 - Agency devs as members of each workspace they manage
 - The client invited to their workspace, so they can use the AI for daily updates (adding articles, changing hours)

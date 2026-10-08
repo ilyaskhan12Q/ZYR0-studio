@@ -99,7 +99,7 @@ Browse your project structure:
 
 #### Hidden Folders
 
-OSW Studio uses hidden folders (starting with `.`) to provide AI context:
+ZYR0 Studio uses hidden folders (starting with `.`) to provide AI context:
 
 | Folder | Icon | Purpose |
 |--------|------|---------|
@@ -143,7 +143,7 @@ Press `Ctrl+S` (Windows/Linux) or `Cmd+S` (Mac) to save your project.
 
 ### Checkpoints
 
-OSW Studio creates checkpoints automatically after AI makes changes:
+ZYR0 Studio creates checkpoints automatically after AI makes changes:
 
 - **Auto-checkpoints** are created during AI operations (last 5 kept per project)
 - **Manual saves** (Cmd/Ctrl+S) persist across refreshes and are never evicted
@@ -311,7 +311,7 @@ Start new conversations when switching to different features
 
 1. Export as JSON
 2. Share file with others
-3. They import it in their OSW Studio
+3. They import it in their ZYR0 Studio
 
 ---
 

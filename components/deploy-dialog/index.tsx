@@ -123,11 +123,11 @@ export function DeployDialog({ open, projectId, onOpenChange }: DeployDialogProp
             }
           />
 
-          {/* OSW Studio instance */}
+          {/* ZYR0 Studio instance */}
           <TargetRow
             icon={<Cloud className="h-4 w-4" />}
-            title="Open Source Web Studio"
-            subtitle="Publish to this OSW Studio instance and manage it in Deployments."
+            title="ZYR0 Studio"
+            subtitle="Publish to this ZYR0 Studio instance and manage it in Deployments."
             enabled={isServerMode}
             selected={target === 'osws'}
             onSelect={() => setTarget('osws')}

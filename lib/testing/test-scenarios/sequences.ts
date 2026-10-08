@@ -238,7 +238,7 @@ export const testSequences: TestSequence[] = [
       {
         id: 'seq-stress-special-chars',
         name: 'Edit file with special characters',
-        prompt: "Update index.html: change the script tag content to include a template literal that logs `Hello, ${name}! Welcome to \"OSW Studio\" — it's great.` and a regex /\\d+\\.\\d+/g.",
+        prompt: "Update index.html: change the script tag content to include a template literal that logs `Hello, ${name}! Welcome to \"ZYR0 Studio\" — it's great.` and a regex /\\d+\\.\\d+/g.",
         assertions: [
           { type: 'file_contains', path: '/index.html', value: '${name}', description: 'Contains template literal variable' },
           { type: 'file_matches', path: '/index.html', pattern: 'it.s great', description: 'Contains apostrophe text' },
@@ -248,11 +248,11 @@ export const testSequences: TestSequence[] = [
       {
         id: 'seq-stress-sequential-edits',
         name: 'Sequential edits to same file',
-        prompt: "Make these changes to index.html in order: 1) Change the title to 'My Portfolio', 2) Add a class 'dark-theme' to the body tag, 3) Add a footer with text 'Built with OSW Studio' before </body>.",
+        prompt: "Make these changes to index.html in order: 1) Change the title to 'My Portfolio', 2) Add a class 'dark-theme' to the body tag, 3) Add a footer with text 'Built with ZYR0 Studio' before </body>.",
         assertions: [
           { type: 'file_contains', path: '/index.html', value: 'My Portfolio', description: 'Title changed' },
           { type: 'file_contains', path: '/index.html', value: 'dark-theme', description: 'Body class added' },
-          { type: 'file_contains', path: '/index.html', value: 'Built with OSW Studio', description: 'Footer added' },
+          { type: 'file_contains', path: '/index.html', value: 'Built with ZYR0 Studio', description: 'Footer added' },
         ],
       },
       {

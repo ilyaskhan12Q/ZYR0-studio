@@ -201,7 +201,7 @@ export const BLOG_PROJECT_TEMPLATE: ProjectTemplate = {
       content: `<div class="foot-band">
     <footer class="wrap site-foot">
         <span>{{siteName}}</span>
-        <span class="mono">Built with OSW Studio</span>
+        <span class="mono">Built with ZYR0 Studio</span>
     </footer>
 </div>`
     },

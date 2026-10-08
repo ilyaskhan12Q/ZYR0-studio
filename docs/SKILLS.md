@@ -31,7 +31,7 @@ Skills are markdown documents that teach the AI how you want things done:
 
 ## How Skills Work
 
-When you enable a skill, OSW Studio makes it **available** to the AI, but doesn't load the entire content into context automatically. Instead:
+When you enable a skill, ZYR0 Studio makes it **available** to the AI, but doesn't load the entire content into context automatically. Instead:
 
 1. **Metadata is revealed** - AI sees skill names, descriptions, and tags
 2. **Dynamic loading** - Skills are loaded into project context only when needed
@@ -70,11 +70,11 @@ By default, the AI decides on its own whether to read a skill — but it doesn't
 
 ## Built-in Skills
 
-OSW Studio includes skills to get you started:
+ZYR0 Studio includes skills to get you started:
 
 ### Workflow
 
-Teaches AI the recommended workflow for building in OSW Studio.
+Teaches AI the recommended workflow for building in ZYR0 Studio.
 
 **What it does:**
 - Plan before coding (PLAN.md)
@@ -421,7 +421,7 @@ A: Yes. If two skills give opposite guidance, AI may get confused. Keep skills c
 A: Minimal impact. Only skill metadata is always present. Full skill content is loaded on-demand, so you only pay for tokens when the skill is actually used. If you enable Skill Evaluation, there's an additional API call per message for the pre-flight check.
 
 **Q: Can I use Anthropic's SKILL.md files?**
-A: Yes! OSW Studio is compatible with the SKILL.md convention.
+A: Yes! ZYR0 Studio is compatible with the SKILL.md convention.
 
 **Q: Should every team member have the same skills?**
 A: For consistency, yes. Export/import skills to share with your team.

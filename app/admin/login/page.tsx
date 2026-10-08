@@ -93,7 +93,7 @@ export default function LoginPage() {
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl font-semibold mb-2 tracking-tight">OSW Studio</h1>
+        <h1 className="text-3xl font-semibold mb-2 tracking-tight">ZYR0 Studio</h1>
         <p className="text-muted-foreground mb-8">Sign in to your account</p>
 
         {checkingSetup && (
@@ -160,7 +160,7 @@ export default function LoginPage() {
         <div className="mt-12 pt-6 border-t border-border flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <span>Powered by</span>
           <Logo width={20} height={20} className="opacity-80" />
-          <span>OSW Studio</span>
+          <span>ZYR0 Studio</span>
         </div>
       </div>
     </div>

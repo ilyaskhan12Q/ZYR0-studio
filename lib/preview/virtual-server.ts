@@ -404,7 +404,7 @@ export class VirtualServer {
     // Always inject the interceptor, even if no blob URLs yet (for future dynamic loading)
     const deploymentIdForScript = this.deploymentId || '';
     const vfsScript = `<script>
-// VFS Asset Interceptor - Auto-injected by OSW Studio
+// VFS Asset Interceptor - Auto-injected by ZYR0 Studio
 (function() {
   const deploymentId = ${JSON.stringify(deploymentIdForScript)};
 
@@ -710,7 +710,7 @@ export class VirtualServer {
 </script>`;
 
     const consoleScript = `<script>
-// Console Capture - Auto-injected by OSW Studio
+// Console Capture - Auto-injected by ZYR0 Studio
 (function() {
   if (window === window.parent) return;
   var levels = ['log', 'warn', 'error', 'info', 'debug'];

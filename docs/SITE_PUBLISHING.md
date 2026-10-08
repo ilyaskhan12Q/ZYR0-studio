@@ -1,12 +1,12 @@
 # Deployment Publishing
 
-Publish and configure deployments directly from OSW Studio in **Server Mode**.
+Publish and configure deployments directly from ZYR0 Studio in **Server Mode**.
 
 ---
 
 ## Overview
 
-Server Mode lets you publish static sites directly from your OSW Studio instance. Each deployment gets its own URL, configurable settings for analytics, SEO, compliance, and more.
+Server Mode lets you publish static sites directly from your ZYR0 Studio instance. Each deployment gets its own URL, configurable settings for analytics, SEO, compliance, and more.
 
 **Key Features:**
 - **One-click publishing** - Compile and deploy instantly

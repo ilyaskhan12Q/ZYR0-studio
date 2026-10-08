@@ -483,7 +483,7 @@ function applySetting(project: Project, change: SettingChange, result: ApplyResu
 }
 
 function unknownRuntime(value: string): string {
-  return `"${value}" is not a runtime this version of OSW Studio has, so the runtime was left unchanged.`;
+  return `"${value}" is not a runtime this version of ZYR0 Studio has, so the runtime was left unchanged.`;
 }
 
 function isKnownRuntime(value: string): value is ProjectRuntime {

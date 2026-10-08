@@ -177,7 +177,7 @@ export const AI_ASSISTANT_PROJECT_TEMPLATE: ProjectTemplate = {
         setBusy(true);
         notice(
           'No server function is reachable, so there is nothing to answer with. The API key lives ' +
-            'in the ask function rather than in the browser, which means this page needs OSWS in ' +
+            'in the ask function rather than in the browser, which means this page needs ZYR0 Studio in ' +
             'Server Mode with the project deployed. Then set AI_API_KEY under Settings > Secrets ' +
             'to an OpenAI API key.'
         );
@@ -321,7 +321,7 @@ scroll away.
 
 This is configured for the OpenAI API, calling \`gpt-5-nano-2025-08-07\`.
 
-1. Run OSWS in Server Mode and deploy the project. Edge functions execute against a deployment, so
+1. Run ZYR0 Studio in Server Mode and deploy the project. Edge functions execute against a deployment, so
    the page cannot answer from the preview of a project that has never been deployed.
 2. Set \`AI_API_KEY\` under Settings > Secrets to an OpenAI API key.
 3. For another provider, change \`API_URL\` and \`MODEL\` at the top of the \`ask\` function. Any

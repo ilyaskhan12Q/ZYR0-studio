@@ -174,7 +174,7 @@ export OLLAMA_ORIGINS="*"
    - Settings → Server → Enable CORS
 
 3. **Use proxy mode**:
-   - OSW Studio has proxy routes that bypass CORS
+   - ZYR0 Studio has proxy routes that bypass CORS
 
 ---
 
@@ -281,7 +281,7 @@ QuotaExceededError: The quota has been exceeded
    - Delete unused projects
 
 2. **Clear browser data**:
-   - Keep OSW Studio origin
+   - Keep ZYR0 Studio origin
    - Or export all (.osws) then reimport
 
 3. **Check browser quota**:
@@ -300,7 +300,7 @@ navigator.storage.estimate().then(estimate => {
 
 **Prevention**:
 - Regular .osws exports (backups)
-- Don't clear IndexedDB for OSW Studio origin
+- Don't clear IndexedDB for ZYR0 Studio origin
 
 **Recovery**:
 - Import last .osws backup
@@ -586,7 +586,7 @@ Error: Parse error on line 5
 
 1. **Check documentation**: Other guides may have answers
 2. **Browser console**: F12 → Console for error details
-3. **Report bug**: [GitHub Issues](https://github.com/o-stahl/osw-studio/issues)
+3. **Report bug**: [GitHub Issues](https://github.com/ilyaskhan/zyr0-studio/issues)
 
 **When reporting**:
 - Describe expected vs actual behavior

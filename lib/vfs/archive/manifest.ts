@@ -81,7 +81,7 @@ export function parseManifest(text: string, filename = 'project.json'): ProjectM
   }
   if (data.formatVersion > ARCHIVE_FORMAT_VERSION) {
     throw new Error(
-      `This archive was made by a newer version of OSW Studio (format ${data.formatVersion}). Update the app to import it.`
+      `This archive was made by a newer version of ZYR0 Studio (format ${data.formatVersion}). Update the app to import it.`
     );
   }
   return {

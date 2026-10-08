@@ -87,10 +87,10 @@ export default function RegisterPage() {
 
         {/* Title */}
         <h1 className="text-3xl font-semibold mb-2 tracking-tight">
-          {isSetup ? 'Set Up OSW Studio' : 'Create an account'}
+          {isSetup ? 'Set Up ZYR0 Studio' : 'Create an account'}
         </h1>
         <p className="text-muted-foreground mb-8">
-          {isSetup ? 'Create the admin account to get started' : 'Join OSW Studio'}
+          {isSetup ? 'Create the admin account to get started' : 'Join ZYR0 Studio'}
         </p>
 
         {/* Register Form */}
@@ -198,7 +198,7 @@ export default function RegisterPage() {
         <div className="mt-12 pt-6 border-t border-border flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <span>Powered by</span>
           <Logo width={20} height={20} className="opacity-80" />
-          <span>OSW Studio</span>
+          <span>ZYR0 Studio</span>
         </div>
       </div>
     </div>

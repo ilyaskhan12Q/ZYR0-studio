@@ -77,7 +77,7 @@ export function generateConsentBanner(options: ConsentBannerOptions): string {
   }
 
   return `
-<!-- OSW Studio Consent Banner -->
+<!-- ZYR0 Studio Consent Banner -->
 <style>
 #osw-consent-banner {
   position: fixed;

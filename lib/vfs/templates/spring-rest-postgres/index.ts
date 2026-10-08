@@ -4,7 +4,7 @@ import { templateStylesheet } from '../theme';
 
 export const SPRING_REST_POSTGRES_PROJECT_TEMPLATE: ProjectTemplate = {
   name: "Spring Boot REST API",
-  description: "A layered Spring Boot and PostgreSQL service to edit here and run elsewhere: controller, service, repository, migrations, tests and Docker Compose. OSWS cannot build or run Java, so it is exported and run with Maven",
+  description: "A layered Spring Boot and PostgreSQL service to edit here and run elsewhere: controller, service, repository, migrations, tests and Docker Compose. ZYR0 Studio cannot build or run Java, so it is exported and run with Maven",
   directories: [
     "/docs",
     "/docs/adr",
@@ -20,13 +20,13 @@ export const SPRING_REST_POSTGRES_PROJECT_TEMPLATE: ProjectTemplate = {
   files: [
     {
       path: "/.PROMPT.md",
-      content: `# Spring Boot REST API, working on this in OSWS
+      content: `# Spring Boot REST API, working on this in ZYR0 Studio
 
-A Java project stored and edited in OSWS, **built and run outside it**. Read \`/AGENTS.md\` first: it
+A Java project stored and edited in ZYR0 Studio, **built and run outside it**. Read \`/AGENTS.md\` first: it
 holds the rules for changing this code and travels with the repository. This file covers only what
 is different about editing it here.
 
-## OSWS cannot run this
+## ZYR0 Studio cannot run this
 
 There is no Java, no Maven, no Docker and no PostgreSQL in this environment. Nothing in this
 project has been compiled, started or tested by anything that produced it.
@@ -42,7 +42,7 @@ That means:
 - Pinned dependency versions in \`pom.xml\` have not been resolved against a repository. If one is
   wrong, only a real build will say so.
 
-## Getting it out of OSWS
+## Getting it out of ZYR0 Studio
 
 Download the project from the File Explorer. Every file arrives at its real path, so the unzipped
 folder is a working Maven project: \`mvn spring-boot:run\` from the top of it.
@@ -60,7 +60,7 @@ than at compile time.
 
 - Do not add a JavaScript frontend to this project. It is an API. A frontend is a separate project
   that talks to it.
-- Do not rewrite it to fit a runtime OSWS can execute. It is a Project Kit deliberately: OSWS keeps
+- Do not rewrite it to fit a runtime ZYR0 Studio can execute. It is a Project Kit deliberately: ZYR0 Studio keeps
   the files and the history, and the build happens where the tools are.
 - Do not put a real password, connection string or key in any file. \`.env.example\` holds
   placeholders and \`.env\` is gitignored.
@@ -383,7 +383,7 @@ pre + p,
 
         <p class="muted">
             A REST API in layers: controllers over services over repositories, with Flyway
-            migrations and a Docker Compose file for the database. OSWS holds the files and the
+            migrations and a Docker Compose file for the database. ZYR0 Studio holds the files and the
             assistant edits them; Java, Maven and PostgreSQL run on your own machine. So this page
             is a description of the project rather than the service, which starts once you have
             downloaded it.

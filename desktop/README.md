@@ -1,6 +1,6 @@
-# OSW Studio Desktop
+# ZYR0 Studio Desktop
 
-Electron shell around the OSW Studio Next.js standalone server (full Server
+Electron shell around the ZYR0 Studio Next.js standalone server (full Server
 Mode: SQLite storage, deployments, server functions). This directory is the
 single source of truth for the desktop app — CI releases and local builds both
 use these exact files.

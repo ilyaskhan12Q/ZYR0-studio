@@ -726,18 +726,18 @@ export function Workspace({ project, onBack, workspaceId }: WorkspaceProps) {
         }
         // Initialize mode from localStorage (migrating the legacy chat-mode key)
         if (typeof window !== 'undefined') {
-          const storedMode = localStorage.getItem('osw-studio-mode');
+          const storedMode = localStorage.getItem('zyr0-studio-mode') || localStorage.getItem('osw-studio-mode');
           if (storedMode === 'chat' || storedMode === 'interview' || storedMode === 'code') {
             useWorkspaceStore.setState({ mode: storedMode });
-          } else if (localStorage.getItem('osw-studio-chat-mode') === 'true') {
+          } else if (localStorage.getItem('zyr0-studio-chat-mode') === 'true' || localStorage.getItem('osw-studio-chat-mode') === 'true') {
             useWorkspaceStore.setState({ mode: 'chat' });
-            localStorage.setItem('osw-studio-mode', 'chat');
+            localStorage.setItem('zyr0-studio-mode', 'chat');
           }
         }
         // Initialize the active interview from localStorage (per project)
         if (typeof window !== 'undefined') {
           let restored = null;
-          const stored = localStorage.getItem(`osw-interview-${project.id}`);
+          const stored = localStorage.getItem(`zyr0-interview-${project.id}`) || localStorage.getItem(`osw-interview-${project.id}`);
           if (stored) {
             try {
               const parsed = JSON.parse(stored);
@@ -1425,7 +1425,7 @@ export function Workspace({ project, onBack, workspaceId }: WorkspaceProps) {
   }
 
   // Deploy is always available — every project can at least be exported as a ZIP. The modal's
-  // target picker handles per-target availability (HuggingFace Space, this OSW Studio instance,
+  // target picker handles per-target availability (HuggingFace Space, this ZYR0 Studio instance,
   // ZIP) and shows connection/enable paths for the ones that aren't ready.
 
   // Desktop header content: Deployment selector + Settings
@@ -1439,7 +1439,7 @@ export function Workspace({ project, onBack, workspaceId }: WorkspaceProps) {
         workspaceId={workspaceId}
       />
 
-      {/* Deploy (HuggingFace Space, OSW Studio instance, or ZIP) */}
+      {/* Deploy (HuggingFace Space, ZYR0 Studio instance, or ZIP) */}
       <Button
         variant="outline"
         size="sm"

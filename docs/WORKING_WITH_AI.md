@@ -2,13 +2,13 @@
 
 **Get the best results from AI when building your websites.**
 
-This guide covers how to interact with AI effectively, understand its capabilities, and make the most of OSW Studio's dual-mode system.
+This guide covers how to interact with AI effectively, understand its capabilities, and make the most of ZYR0 Studio's dual-mode system.
 
 ---
 
 ## Chat Mode vs Code Mode
 
-OSW Studio has two modes that control what AI can do to your project:
+ZYR0 Studio has two modes that control what AI can do to your project:
 
 ### 💬 Chat Mode (Read-Only)
 
@@ -309,7 +309,7 @@ AI often explains its changes. Read these to learn:
 
 ## Cost Tracking
 
-OSW Studio tracks how much you're spending on AI calls.
+ZYR0 Studio tracks how much you're spending on AI calls.
 
 > **Note**: Accurate cost tracking currently only works with **OpenRouter**. Other providers may show no cost data or inaccurate values.
 
@@ -458,7 +458,7 @@ Set up a scheduled function to clean up old records every night at 3am
 
 ### How It Works
 
-OSW Studio mounts a `/.server/` hidden folder containing JSON files with your deployment's backend context. The LLM reads these to understand what exists and writes to them to extend them.
+ZYR0 Studio mounts a `/.server/` hidden folder containing JSON files with your deployment's backend context. The LLM reads these to understand what exists and writes to them to extend them.
 
 See **[Backend → AI Integration](?doc=backend-features#ai-integration)** for more details.
 

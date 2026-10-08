@@ -16,7 +16,7 @@ export function ThemeProvider({
   attribute = 'class',
   defaultTheme = 'dark',
   enableSystem = true,
-  storageKey = 'osw-studio-theme',
+  storageKey = 'zyr0-studio-theme',
   ...props
 }: ThemeProviderProps) {
   return (

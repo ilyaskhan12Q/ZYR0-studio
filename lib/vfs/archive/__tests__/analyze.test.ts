@@ -1127,7 +1127,7 @@ describe('analyzeImport', () => {
     expect(plan.errors).toContainEqual(readerIssues[0]);
     expect(plan.errors).toContainEqual(readerIssues[1]);
     // The wrong-format error itself is still reported alongside them.
-    expect(plan.errors.some((issue) => issue.message.includes('full OSW Studio backup'))).toBe(true);
+    expect(plan.errors.some((issue) => issue.message.includes('full ZYR0 Studio backup'))).toBe(true);
   });
 
   it('does not invent a backend conflict from two archive records of one name', async () => {

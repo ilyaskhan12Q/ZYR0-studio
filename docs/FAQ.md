@@ -4,18 +4,18 @@
 
 ## General
 
-### What is OSW Studio?
+### What is ZYR0 Studio?
 
-OSW Studio (Open Source Web Studio) is a browser-based AI development environment where you describe what you want and an AI agent writes the code. It supports multiple project runtimes — Static (pure HTML/CSS/JS), Handlebars (HTML with templating), React, Preact, Svelte, Vue, Python, and Lua — all running in the browser with no build tools needed.
+ZYR0 Studio (ZYR0 Studio) is a browser-based AI development environment where you describe what you want and an AI agent writes the code. It supports multiple project runtimes — Static (pure HTML/CSS/JS), Handlebars (HTML with templating), React, Preact, Svelte, Vue, Python, and Lua — all running in the browser with no build tools needed.
 
-### Is OSW Studio free?
+### Is ZYR0 Studio free?
 
 The application itself is **free and open source** (MIT license). However:
 - **BYOK (Bring Your Own Key)**: You provide your own AI API keys
 - **API costs**: You pay providers directly for AI usage (typically $0.01-$0.10 per request)
 - **Local models**: Ollama and LM Studio are completely free (run on your machine)
 
-### What can I build with OSW Studio?
+### What can I build with ZYR0 Studio?
 
 **You can build**:
 - Landing pages and marketing sites
@@ -46,7 +46,7 @@ The application itself is **free and open source** (MIT license). However:
 
 **Browser Mode** (default):
 - All data stays in your browser (IndexedDB)
-- Code never sent to OSW Studio servers (we don't have servers!)
+- Code never sent to ZYR0 Studio servers (we don't have servers!)
 - Only sent to AI provider when you generate
 
 **Server Mode** (optional):
@@ -59,7 +59,7 @@ The application itself is **free and open source** (MIT license). However:
 - Use local models (Ollama/LM Studio) for complete privacy
 
 **Token storage**:
-- API keys are stored in localStorage (browser-only, never sent to OSW Studio)
+- API keys are stored in localStorage (browser-only, never sent to ZYR0 Studio)
 - ChatGPT session: the refresh token is in an HttpOnly cookie so JS can't read it; only a short-lived access token (~1 hour) stays in localStorage
 
 ---
@@ -216,7 +216,7 @@ Available in the **Handlebars** runtime. **Build-time templating**:
 
 ### Do I need a server?
 
-**No!** OSW Studio builds static sites that run on:
+**No!** ZYR0 Studio builds static sites that run on:
 - Any web server
 - CDN (content delivery network)
 - Static hosting services
@@ -234,7 +234,7 @@ Most static hosts provide free SSL:
 
 ### What about SEO?
 
-**OSW Studio supports**:
+**ZYR0 Studio supports**:
 - Meta tags (title, description, keywords)
 - Open Graph (social sharing)
 - Sitemap.xml (Server Mode only)
@@ -387,12 +387,12 @@ Yes! Turn any project into a template:
 ### Where can I get support?
 
 1. **Documentation**: Check relevant guide first
-2. **GitHub Issues**: [Report bugs or request features](https://github.com/o-stahl/osw-studio/issues)
+2. **GitHub Issues**: [Report bugs or request features](https://github.com/ilyaskhan/zyr0-studio/issues)
 3. **Community**: Check GitHub Discussions
 
 ### How do I report a bug?
 
-1. Go to [GitHub Issues](https://github.com/o-stahl/osw-studio/issues)
+1. Go to [GitHub Issues](https://github.com/ilyaskhan/zyr0-studio/issues)
 2. Search existing issues
 3. If new, create issue with:
    - Clear description
@@ -403,7 +403,7 @@ Yes! Turn any project into a template:
 
 ### Can I contribute?
 
-Yes! OSW Studio is open source. Visit the [GitHub repository](https://github.com/o-stahl/osw-studio) for:
+Yes! ZYR0 Studio is open source. Visit the [GitHub repository](https://github.com/ilyaskhan/zyr0-studio) for:
 - Code contributions
 - Documentation improvements
 - Bug reports

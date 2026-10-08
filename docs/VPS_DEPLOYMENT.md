@@ -1,6 +1,6 @@
 # VPS Deployment Guide
 
-Deploy OSW Studio on a VPS with full security hardening. Tested on Hetzner Cloud, but applies to any Ubuntu/Debian VPS.
+Deploy ZYR0 Studio on a VPS with full security hardening. Tested on Hetzner Cloud, but applies to any Ubuntu/Debian VPS.
 
 ---
 
@@ -142,7 +142,7 @@ nvm install 20
 ### Clone Repository
 
 ```bash
-git clone https://github.com/o-stahl/osw-studio.git
+git clone https://github.com/ilyaskhan/zyr0-studio.git
 cd osw-studio
 ```
 
@@ -195,7 +195,7 @@ env PATH=$PATH:/home/osws/.nvm/versions/node/v20.18.1/bin pm2 startup systemd -u
 
 ---
 
-## Updating OSW Studio
+## Updating ZYR0 Studio
 
 ```bash
 su - osws

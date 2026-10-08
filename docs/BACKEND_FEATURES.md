@@ -1,6 +1,6 @@
 # Backend Features
 
-This guide covers OSW Studio's advanced backend features, available in **Server Mode** only.
+This guide covers ZYR0 Studio's advanced backend features, available in **Server Mode** only.
 
 ## Overview
 
@@ -26,7 +26,7 @@ You can manage backend features in two places:
 
 ## Prerequisites
 
-- OSW Studio running in **Server Mode**
+- ZYR0 Studio running in **Server Mode**
 - A project with Backend enabled (toggle in Project Settings)
 
 ## Accessing Server Settings
@@ -96,7 +96,7 @@ const response = await fetch('/submit-contact', {
 const result = await response.json();
 ```
 
-This works because OSW Studio injects a lightweight interceptor script (~1.5KB) into published HTML files that:
+This works because ZYR0 Studio injects a lightweight interceptor script (~1.5KB) into published HTML files that:
 - Detects requests that look like edge function calls (paths without file extensions)
 - Routes them to `/api/deployments/{deploymentId}/functions/{path}`
 - Works with `fetch()`, `XMLHttpRequest`, and form submissions
@@ -760,7 +760,7 @@ The Schema Viewer displays your database structure.
 
 ### System Tables
 
-Toggle **Show System Tables** to view OSW Studio's internal tables:
+Toggle **Show System Tables** to view ZYR0 Studio's internal tables:
 - `site_info` - Deployment metadata
 - `files` - File contents
 - `file_tree_nodes` - File tree structure
@@ -897,7 +897,7 @@ Each log entry shows:
 
 ## AI Integration
 
-OSW Studio's AI assistant can understand and work with your backend features when you select a deployment in the workspace.
+ZYR0 Studio's AI assistant can understand and work with your backend features when you select a deployment in the workspace.
 
 ### How It Works
 

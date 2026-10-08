@@ -283,7 +283,7 @@ jobs:
             grab { print }
           ' docs/WHATS_NEW.md > whatsnew.md
           if ! grep -q "[^[:space:]]" whatsnew.md; then
-            printf '%s\n' "This is a maintenance release with bug fixes and small improvements. See the [changelog](https://github.com/o-stahl/osw-studio/blob/main/CHANGELOG.md) for the full list of changes in this version." > whatsnew.md
+            printf '%s\n' "This is a maintenance release with bug fixes and small improvements. See the [changelog](https://github.com/ilyaskhan/zyr0-studio/blob/main/CHANGELOG.md) for the full list of changes in this version." > whatsnew.md
           fi
 
           printf '%b' "$DOWNLOADS" > downloads.md
@@ -312,7 +312,7 @@ jobs:
           fi
           gh release create "$TAG" \
             --draft \
-            --title "OSW Studio v${{ steps.version.outputs.version }}" \
+            --title "ZYR0 Studio v${{ steps.version.outputs.version }}" \
             --notes-file notes-final.md \
             artifacts/*
           # Flip public only after every file is uploaded — updaters never see a partial release

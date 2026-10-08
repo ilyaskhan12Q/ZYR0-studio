@@ -1,26 +1,20 @@
 # What's New
 
-Welcome to OSW Studio! This page highlights the latest features and updates.
+Welcome to ZYR0 Studio! This page highlights the latest features and updates.
 
 **First time here?** Start with the **[Overview](?doc=overview)** or jump straight to **[Getting Started](?doc=getting-started)** to build your first website in 5 minutes.
 
 ---
 
-## v1.95.0 - Large Projects (2026-08-14)
+## v2.1.0 - ZYR0 Studio (2026-08-21)
 
-A project of several hundred pages works in the editor now; the preview used to give up with "Compile timed out after 30000ms" before it could render anything. In Server Mode, publishing a project full of images no longer puts a second copy of them on the server. It also closes a hole that let a published project write files outside its own directory, which is reason enough to take this one if you self-host.
+Welcome to ZYR0 Studio, the next-generation autonomous AI development studio tailored for instant design-to-code creation and full-stack web applications.
 
-### Server Mode
-- **A published site shares its images with the project**: a 100MB project took about 233MB once published, and now stays near 100MB as you push it again
-- **A second deployment of the same project adds almost nothing**: it links the same files instead of copying them again
-- **The storage figure counts what is actually used**: a file shared between a project and its deployments is counted once, not once for each
-
-### If you self-host
-- **A publish could write outside its deployment folder**: a crafted file path escaped it, and on an instance holding several workspaces that reached the others. It has been there since Server Mode shipped, and pushes carrying such a path are now refused
-- **Deleting a workspace takes its published sites down**: their files were left on disk and kept being served after the workspace was gone
-- **Back up `data/workspaces/{id}/` whole, not just the `.sqlite` file**: images live beside the database now, and a database restored without its `blobs/` folder comes back with every image empty
-- **Roll forward rather than back**: a build older than this one reads the new format as text, so downgrading after you have published would leave images broken
-- **The desktop app still copies**: it keeps its data and its published output in separate places, and sharing files needs both on one filesystem
+### Key Highlights
+- **Specialized Design-to-Code Agent:** Convert screenshots, Figma designs, and prompts into pixel-perfect React + Tailwind code
+- **Multi-Provider AI Engine:** Direct support for 16+ LLM providers (Anthropic Claude 3.7, OpenAI GPT-4o, Google Gemini 2.0, DeepSeek, Groq, Ollama)
+- **Zero-Config Local Backend:** Integrated Next.js standalone server and local database bootstrapping
+- **Apache 2.0 Open Source:** Fully permissively licensed with transparent local development workflows
 
 ---
 
@@ -143,7 +137,7 @@ The agent can now search the web with no setup: DuckDuckGo is a built-in provide
 - **Free DuckDuckGo search**: Pick DuckDuckGo under Connections and web search is active — no account, no API key. It's best-effort and unofficial, so it can be rate-limited (more so on shared or hosted instances); Connections says as much, and you can switch to a key-based provider anytime.
 
 ### Providers & models
-- **Live ChatGPT model discovery**: For a connected ChatGPT subscription, the picker fetches the current Codex catalog — model names, context windows, and image support — so new GPT-5.5 and GPT-5.6 models show up without an OSW Studio update, with a built-in fallback list when the catalog can't be reached.
+- **Live ChatGPT model discovery**: For a connected ChatGPT subscription, the picker fetches the current Codex catalog — model names, context windows, and image support — so new GPT-5.5 and GPT-5.6 models show up without an ZYR0 Studio update, with a built-in fallback list when the catalog can't be reached.
 
 ---
 
@@ -153,7 +147,7 @@ Connecting a ChatGPT Plus/Pro subscription is now a browser sign-in — no Codex
 
 ### Connections
 - **ChatGPT subscription browser sign-in**: Codex connections use a browser sign-in flow with automatic token creation and refresh — no Codex CLI, pasted token JSON, or device authorization setting required.
-- **Remote sign-in fallback**: On a self-hosted install where OpenAI's fixed localhost callback can't reach OSW Studio, the connection panel explains this and accepts the full redirect URL copied from the ChatGPT tab.
+- **Remote sign-in fallback**: On a self-hosted install where OpenAI's fixed localhost callback can't reach ZYR0 Studio, the connection panel explains this and accepts the full redirect URL copied from the ChatGPT tab.
 
 ---
 
@@ -174,11 +168,11 @@ The live preview is now sturdier. In-app navigation works with client-side route
 
 ## v1.86.0 - Deploy (2026-07-12)
 
-You can now publish a project as a static Hugging Face Space under your own account, straight from the workspace and live as soon as it finishes, with no manual export. It's one of three targets behind a new Deploy button: a Hugging Face Space, this OSW Studio instance in Server Mode, or a ZIP you can upload anywhere. The separate Project and settings buttons in the workspace header have also been merged into a single Settings dialog.
+You can now publish a project as a static Hugging Face Space under your own account, straight from the workspace and live as soon as it finishes, with no manual export. It's one of three targets behind a new Deploy button: a Hugging Face Space, this ZYR0 Studio instance in Server Mode, or a ZIP you can upload anywhere. The separate Project and settings buttons in the workspace header have also been merged into a single Settings dialog.
 
 ### Deploy
-- **Hugging Face Space**: With HuggingFace connected, publish a project as a static Space under your account, live as soon as it finishes; re-deploying updates the same Space, and each one credits OSW Studio with an optional footer you can turn off
-- **Deploy button**: Pick where a project goes — a Hugging Face Space, this OSW Studio instance in Server Mode, or a ZIP — without the manual export step, with a link to the docs for each target
+- **Hugging Face Space**: With HuggingFace connected, publish a project as a static Space under your account, live as soon as it finishes; re-deploying updates the same Space, and each one credits ZYR0 Studio with an optional footer you can turn off
+- **Deploy button**: Pick where a project goes — a Hugging Face Space, this ZYR0 Studio instance in Server Mode, or a ZIP — without the manual export step, with a link to the docs for each target
 - **Connect with a token**: Outside a HuggingFace Space, where the one-click sign-in isn't available, connect HuggingFace by pasting a write-access token under Connections — enough to publish a Space from a self-hosted or local instance
 
 ### Interface
@@ -516,7 +510,7 @@ You can now run multiple generations at the same time. Start a task on one proje
 
 ## v1.65.0 - Background Generation & Pinned Checkpoints (2026-05-14)
 
-You can now start a task and browse other projects within OSW Studio without losing it. The orchestrator keeps running while you review other work — come back and your conversation, checkpoints, and generated files are all there. Checkpoints also got an upgrade: pin any checkpoint to keep it permanently, and per-project pruning keeps storage tidy automatically.
+You can now start a task and browse other projects within ZYR0 Studio without losing it. The orchestrator keeps running while you review other work — come back and your conversation, checkpoints, and generated files are all there. Checkpoints also got an upgrade: pin any checkpoint to keep it permanently, and per-project pruning keeps storage tidy automatically.
 
 ### AI Orchestration
 - **Tasks survive in-app navigation** — Start a generation, switch to another project to review it, and return to find the completed work waiting for you. The task runs as long as the browser tab stays open
@@ -648,7 +642,7 @@ The frontend design skill is now a skill tree — a base skill with universal de
 - **Frontend Design skill tree** - The AI now picks an aesthetic direction (bold-geometric, soft-organic, editorial, or minimal) and follows a complete design philosophy — what kinds of fonts to look for, how color relationships should feel, what motion communicates. Each generation produces genuinely different results within the chosen aesthetic
 
 ### AI
-- **Resilient large file writes** - When a provider truncates or hangs mid-stream (common with some models on large heredoc writes), OSW Studio now recovers gracefully — writing what was received, prompting the model to continue, and timing out after 45 seconds instead of hanging forever
+- **Resilient large file writes** - When a provider truncates or hangs mid-stream (common with some models on large heredoc writes), ZYR0 Studio now recovers gracefully — writing what was received, prompting the model to continue, and timing out after 45 seconds instead of hanging forever
 
 ### Editor
 - **Media file preview** - Image and video files now show inline previews in the editor with playback controls, instead of "Unsupported File Type"
@@ -700,7 +694,7 @@ Build pages visually by dragging blocks onto the live preview. Semantic blocks a
 
 All OpenRouter models are now available, even those without native tool support. Plus a new local inference provider.
 
-- **Use Any Model** - Models without native tool/function calling (Gemma 3n, OLMo, Liquid, etc.) now work. The AI writes commands in bash code blocks instead, and OSW Studio extracts and executes them automatically. The model list shows a "No tools" badge so you know what to expect
+- **Use Any Model** - Models without native tool/function calling (Gemma 3n, OLMo, Liquid, etc.) now work. The AI writes commands in bash code blocks instead, and ZYR0 Studio extracts and executes them automatically. The model list shows a "No tools" badge so you know what to expect
 - **Model Capability Badges** - The model selector now shows Tools, Vision, Reasoning, and "No native tools" badges so you can see what each model supports at a glance
 - **mesh-llm Provider** - New provider for free open model inference via the [mesh-llm](https://github.com/michaelneale/mesh-llm) peer-to-peer network. Run `mesh-llm --auto` locally, then select "mesh-llm" in Settings. Models are auto-discovered from the mesh
 - **Better Error Recovery** - Clicking Continue after an API error no longer loops on the same failure. The AI now gets feedback about what went wrong and adjusts its approach
@@ -731,9 +725,9 @@ Preview the site you're building without any workspace chrome getting in the way
 
 ## v1.52.0 - Desktop App (2026-04-04)
 
-OSW Studio is now available as a desktop application for macOS, Windows, and Linux.
+ZYR0 Studio is now available as a desktop application for macOS, Windows, and Linux.
 
-- **Desktop App** - Download and run OSW Studio locally as a native desktop application. The desktop version runs the full server with SQLite support, so you get publishing, sync, and all Server Mode features without needing to set up a server. Available from [GitHub Releases](https://github.com/o-stahl/osw-studio/releases)
+- **Desktop App** - Download and run ZYR0 Studio locally as a native desktop application. The desktop version runs the full server with SQLite support, so you get publishing, sync, and all Server Mode features without needing to set up a server. Available from [GitHub Releases](https://github.com/ilyaskhan/zyr0-studio/releases)
 
 ---
 
@@ -870,7 +864,7 @@ Svelte, Vue, and Preact join React as first-class project runtimes. Build with w
 Build React apps with TypeScript — right in the browser. No npm, no build tools, no setup.
 
 - **React + TypeScript Projects** - Create component-based React apps with `.tsx` files. Source files are automatically bundled in the browser — no build tools or setup needed. npm packages like `framer-motion`, `zustand`, or `date-fns` just work — import by name and they're fetched from a CDN at runtime
-- **Two React Templates** - A minimal blank starter (Hello World — clean slate for AI) and a demo task tracker (components, state, props, typed interfaces). Pick the starter when you want the AI to build from scratch, or the demo to explore what React in OSW Studio looks like
+- **Two React Templates** - A minimal blank starter (Hello World — clean slate for AI) and a demo task tracker (components, state, props, typed interfaces). Pick the starter when you want the AI to build from scratch, or the demo to explore what React in ZYR0 Studio looks like
 - **Seamless Preview** - The live preview rebuilds automatically when you edit any file. React projects get the same instant feedback as HTML/CSS/JS projects
 - **Smart Export** - ZIP exports include both a ready-to-deploy build and your source files with a `package.json` + `vite.config.ts` for local development
 - **Server Mode Publishing** - React projects can now be published in Server Mode, just like static projects
@@ -889,7 +883,7 @@ Build React apps with TypeScript — right in the browser. No npm, no build tool
 Local model support expanded and infrastructure fixes.
 
 - **New: llama.cpp** - Run GGUF models locally with `llama-server` (default port 8080). Supports streaming, tool use, and vision via multimodal projector. No API key needed — just start the server and select the provider
-- **Better Local Model Tool Use** - When a locally-loaded model doesn't support native function calling, OSW Studio now falls back to JSON-based tool prompting for all local providers — previously this only worked with Ollama
+- **Better Local Model Tool Use** - When a locally-loaded model doesn't support native function calling, ZYR0 Studio now falls back to JSON-based tool prompting for all local providers — previously this only worked with Ollama
 - **Version Tracking Fix** - The analytics version indicator was stuck on an old version. Now reads directly from package.json
 
 ---
@@ -935,7 +929,7 @@ The AI system prompt has been significantly compressed and reorganized so the mo
 
 ## v1.36.0 - Benchmark Overhaul & Shell `wc` (2026-02-26)
 
-The OSWS Benchmark (formerly "Model Tester") has been rebuilt with programmatic assertions, detailed tool analytics, and self-evaluation tracking — giving you much more insight into how models actually perform.
+The ZYR0 Studio Benchmark (formerly "Model Tester") has been rebuilt with programmatic assertions, detailed tool analytics, and self-evaluation tracking — giving you much more insight into how models actually perform.
 
 - **Assertion-Based Validation** - Tests are now validated by 11 assertion types (`file_exists`, `file_contains`, `file_matches`, `tool_used`, `tool_output_matches`, `judge`, and more) instead of relying solely on the model's self-evaluation
 - **Tool Usage Analytics** - A new stats card shows total/successful/failed/invalid tool calls with a per-tool breakdown table. Invalid calls (model hallucinating tools like `read`) are tracked separately
@@ -949,7 +943,7 @@ The OSWS Benchmark (formerly "Model Tester") has been rebuilt with programmatic 
 
 ## v1.35.0 - Prompt Architecture & Shell Improvements (2026-02-25)
 
-The AI system prompt no longer hard-codes website instructions. Domain knowledge now lives in a per-project `.PROMPT.md` file that the AI reads at conversation start, making OSW Studio adaptable to non-website projects.
+The AI system prompt no longer hard-codes website instructions. Domain knowledge now lives in a per-project `.PROMPT.md` file that the AI reads at conversation start, making ZYR0 Studio adaptable to non-website projects.
 
 - **Per-Project `.PROMPT.md`** - Each project can have a `/.PROMPT.md` file containing domain-specific instructions for the AI. All built-in templates ship with one pre-filled. Existing projects without it see a subtle banner offering to add the default
 - **Configurable Entry Point** - Right-click any file in the explorer and choose "Set as Entry Point" to change which file the preview loads first. The entry point shows a green Home icon
@@ -1002,12 +996,12 @@ The checkpoint system has been redesigned with a new panel and a clearer lifecyc
 
 ## v1.32.0 - Anonymous Usage Analytics (2026-02-18)
 
-OSW Studio now includes lightweight, anonymous telemetry to help understand which features get used, which providers and models are popular, and where things are breaking. No prompts, code, file names, API keys, or error messages are ever collected.
+ZYR0 Studio now includes lightweight, anonymous telemetry to help understand which features get used, which providers and models are popular, and where things are breaking. No prompts, code, file names, API keys, or error messages are ever collected.
 
 - **What's tracked** - Page views, provider/model selection, task success/failure rates, tool call outcomes, API error types, and session heartbeats
 - **Anonymous visitor ID** - A random UUID stored in localStorage counts unique visitors. It's not tied to any account or personal data and resets if you clear browser storage
 - **Opt-out** - Toggle "Anonymous Usage Analytics" off in Settings > Application Settings. A first-run disclosure dialog explains everything on your first visit
-- **Transparent** - Built with [osw-analytics](https://github.com/o-stahl/osw-analytics), an open-source analytics system (currently in testing, be sure to star it to get notified when it's done)
+- **Transparent** - Built with [osw-analytics](https://github.com/ilyaskhan/zyr0-studio), an open-source analytics system (currently in testing, be sure to star it to get notified when it's done)
 - **Low impact** - Events are batched and sent every 30 seconds. If the analytics server is unreachable, events are silently dropped. The app never blocks on telemetry
 
 Self-hosted instances can disable telemetry entirely with `NEXT_PUBLIC_TELEMETRY_ENABLED=false` in `.env` or keep them on to help out with the development.
@@ -1028,7 +1022,7 @@ HuggingFace is now available as an AI provider. Every HuggingFace account includ
 
 ### Setup
 
-1. In OSW Studio settings, select **HuggingFace** as your AI provider
+1. In ZYR0 Studio settings, select **HuggingFace** as your AI provider
 2. Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) and create a token with "Make calls to Inference Providers" permission
 3. Paste the token and click **Connect**
 4. Pick a model and start building — no API costs until you exceed your free credits
@@ -1037,7 +1031,7 @@ HuggingFace is now available as an AI provider. Every HuggingFace account includ
 
 ## v1.30.0 - Codex Generation (2026-02-14)
 
-Use your ChatGPT Plus/Pro subscription to generate code directly in OSW Studio. The new Codex adapter translates between our standard format and the Codex Responses API entirely server-side — the editor, preview, and chat all work exactly as before.
+Use your ChatGPT Plus/Pro subscription to generate code directly in ZYR0 Studio. The new Codex adapter translates between our standard format and the Codex Responses API entirely server-side — the editor, preview, and chat all work exactly as before.
 
 - **Codex Generation** - The "Codex (ChatGPT Sub)" provider now supports full generation with streaming responses and tool calls (shell, json_patch).
 - **GPT-5.3 Codex** - New default model. Also available: GPT-5.2 Codex, GPT-5.1 Codex, GPT-5.1 Codex Mini, Codex Mini, and the general-purpose GPT-5.2 and GPT-5.1.
@@ -1052,7 +1046,7 @@ Use your ChatGPT Plus/Pro subscription to generate code directly in OSW Studio. 
 1. Install the [Codex CLI](https://github.com/openai/codex): `npm i -g @openai/codex`
 2. Run `codex login` and follow the browser prompts
 3. Copy your token: `cat ~/.codex/auth.json | pbcopy`
-4. In OSW Studio settings, select **Codex (ChatGPT Sub)** and paste the token JSON
+4. In ZYR0 Studio settings, select **Codex (ChatGPT Sub)** and paste the token JSON
 5. Pick a model and start building
 
 ---
@@ -1202,7 +1196,7 @@ The dashboard is now available in browser mode and is the default landing page f
 
 A new dashboard is now the landing page after login, giving you a quick overview of your server:
 
-- **System** - OSWS version, Node.js version, uptime, memory usage
+- **System** - ZYR0 Studio version, Node.js version, uptime, memory usage
 - **Content** - Projects, templates, skills, and total files
 - **Hosting** - Published sites, sites with databases, storage used
 - **Traffic** - Requests per hour/day, error counts, top sites, recent errors
@@ -1412,7 +1406,7 @@ The AI now auto-detects when a model accidentally writes tool syntax as text ins
 
 ### Server Mode
 
-Self-host OSW Studio for a complete web publishing platform. Server Mode adds:
+Self-host ZYR0 Studio for a complete web publishing platform. Server Mode adds:
 
 - **Admin authentication** - Password-protected admin area
 - **Project sync** - Push projects to the server, pull them back to any browser
@@ -1427,7 +1421,7 @@ Server Mode is optional and requires setup. It's still being actively developed 
 
 ### In-App Documentation
 
-Browse all documentation without leaving OSW Studio. Access guides from the sidebar under Docs.
+Browse all documentation without leaving ZYR0 Studio. Access guides from the sidebar under Docs.
 
 ### Gemini Thinking Model Support
 
@@ -1470,7 +1464,7 @@ The Debug panel now includes a terminal for testing VFS shell commands directly.
 
 ## v1.12.0
 
-- Rebranded from DeepStudio to OSW Studio
+- Rebranded from DeepStudio to ZYR0 Studio
 - Dual mode system: Chat mode (read-only) and Code mode (full editing)
 - Consolidated IndexedDB architecture
 

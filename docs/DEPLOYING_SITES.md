@@ -1,12 +1,12 @@
 # Deploying Your Website
 
-Export your OSW Studio project and deploy it to any static hosting platform.
+Export your ZYR0 Studio project and deploy it to any static hosting platform.
 
 ---
 
 ## Overview
 
-OSW Studio projects export as static HTML/CSS/JavaScript that can be hosted anywhere:
+ZYR0 Studio projects export as static HTML/CSS/JavaScript that can be hosted anywhere:
 
 1. Export your project as a ZIP file
 2. Extract and upload to a hosting platform
@@ -23,7 +23,7 @@ Most platforms offer free tiers for static sites, automatic HTTPS, and custom do
 
 ---
 
-## Deploy from OSW Studio
+## Deploy from ZYR0 Studio
 
 When available, the workspace header has a **Deploy** button that publishes the current project directly, without a manual export. It opens a dialog where you pick a **deployment target**. Only static-serveable projects can be deployed this way (Python and Lua projects run in a terminal and can't be served as a static site — use ZIP export instead).
 
@@ -34,11 +34,11 @@ Publishes the project as a **static Hugging Face Space** under your own HuggingF
 - Pick a name (suggested from the project), an optional description, and public/private.
 - The Space is **live as soon as it finishes** — no separate step. You get the link in the dialog.
 - Re-deploying updates the same Space; you can also publish it as a new Space.
-- Each published Space's README credits OSW Studio, and the site gets an optional "Built with OSW Studio" footer you can turn off.
+- Each published Space's README credits ZYR0 Studio, and the site gets an optional "Built with ZYR0 Studio" footer you can turn off.
 
-### Open Source Web Studio (this instance)
+### ZYR0 Studio (this instance)
 
-Available in **Server Mode**. Publishes to this OSW Studio instance as a managed **deployment** with its own publish settings, custom domain, and analytics. Selecting this target takes you to the **Deployments** page to create, enable, and publish. See [Server Mode](?doc=server-mode) and [Deployment Publishing](?doc=site-publishing) for details.
+Available in **Server Mode**. Publishes to this ZYR0 Studio instance as a managed **deployment** with its own publish settings, custom domain, and analytics. Selecting this target takes you to the **Deployments** page to create, enable, and publish. See [Server Mode](?doc=server-mode) and [Deployment Publishing](?doc=site-publishing) for details.
 
 ### Download as ZIP
 
@@ -50,7 +50,7 @@ Always available, for every project type. Downloads the compiled project as a ZI
 
 ### ZIP Export (For Deployment)
 
-1. Open your project in OSW Studio
+1. Open your project in ZYR0 Studio
 2. Click the **⋮** menu icon on the project card
 3. Select **Export as ZIP**
 4. Save the file
@@ -68,7 +68,7 @@ For backing up projects with full history (checkpoints, conversations):
 2. Select **Export** (JSON format)
 3. Save the `.osws` file
 
-This format is for importing back into OSW Studio, not for deployment.
+This format is for importing back into ZYR0 Studio, not for deployment.
 
 ---
 
@@ -173,7 +173,7 @@ Free SSL certificates are included automatically by all recommended platforms.
 
 When you make changes:
 
-1. Export a new ZIP from OSW Studio
+1. Export a new ZIP from ZYR0 Studio
 2. Extract the files
 3. Upload to your hosting platform
 
@@ -224,7 +224,7 @@ git push
 **Check:** Platform build logs for specific errors
 
 **Common causes:**
-- Platform looking for a build script (OSW Studio exports are pre-built)
+- Platform looking for a build script (ZYR0 Studio exports are pre-built)
 - Incorrect publish directory setting
 
 **Fix:** Configure platform to serve the root directory as static files (no build step needed)
@@ -233,10 +233,10 @@ git push
 
 ## Server Mode Alternative
 
-**Want to publish sites directly from OSW Studio without exporting?**
+**Want to publish sites directly from ZYR0 Studio without exporting?**
 
-OSW Studio's **Server Mode** lets you:
-- Host OSW Studio on your own server
+ZYR0 Studio's **Server Mode** lets you:
+- Host ZYR0 Studio on your own server
 - Create and publish deployments at `/deployments/{id}/` directly
 - Configure SEO, analytics, and custom domains per deployment
 - Skip the export/upload cycle

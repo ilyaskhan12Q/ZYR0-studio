@@ -1,15 +1,15 @@
-# OSW Studio Documentation
+# ZYR0 Studio Documentation
 
 **Your guide to building websites with AI.**
 
-Welcome to OSW Studio - a browser-based development environment where you chat with AI to build websites and web apps.
+Welcome to ZYR0 Studio - a browser-based development environment where you chat with AI to build websites and web apps.
 
 ---
 
 ## Quick Links
 
-**New to OSW Studio?**
-- 👉 **[Overview](?doc=overview)** - What is OSW Studio? (1 min read)
+**New to ZYR0 Studio?**
+- 👉 **[Overview](?doc=overview)** - What is ZYR0 Studio? (1 min read)
 - 🚀 **[Getting Started](?doc=getting-started)** - Build your first site (5 min)
 
 **Common Tasks:**
@@ -33,11 +33,11 @@ Welcome to OSW Studio - a browser-based development environment where you chat w
 
 Perfect for newcomers and casual users:
 
-- **[Overview](?doc=overview)** - What is OSW Studio and who is it for?
+- **[Overview](?doc=overview)** - What is ZYR0 Studio and who is it for?
 - **[Getting Started](?doc=getting-started)** - Set up and create your first project
 - **[Projects](?doc=projects)** - Create, manage, and export projects
 
-### Using OSW Studio
+### Using ZYR0 Studio
 
 Guides for regular users:
 
@@ -62,7 +62,7 @@ For support and self-hosters:
 
 ## What Can I Build?
 
-OSW Studio supports multiple project runtimes — pick the one that fits your needs:
+ZYR0 Studio supports multiple project runtimes — pick the one that fits your needs:
 
 **Static (HTML/CSS/JS):**
 ✅ **Personal websites** - Portfolios, blogs, resumes
@@ -119,9 +119,9 @@ Download your complete site and deploy to Vercel, Netlify, or any static host in
 
 ### External Links
 
-- **[Live Demo](https://huggingface.co/spaces/otst/osw-studio)** - Try OSW Studio now
-- **[GitHub Repository](https://github.com/o-stahl/osw-studio)** - Source code
-- **[Report Issues](https://github.com/o-stahl/osw-studio/issues)** - Bug reports & feature requests
+- **[Live Demo](https://huggingface.co/spaces/otst/osw-studio)** - Try ZYR0 Studio now
+- **[GitHub Repository](https://github.com/ilyaskhan/zyr0-studio)** - Source code
+- **[Report Issues](https://github.com/ilyaskhan/zyr0-studio/issues)** - Bug reports & feature requests
 
 ### Features
 
@@ -144,7 +144,7 @@ Download your complete site and deploy to Vercel, Netlify, or any static host in
 **Before asking for help:**
 
 1. Check the [FAQ](?doc=faq)
-2. Search [GitHub Issues](https://github.com/o-stahl/osw-studio/issues)
+2. Search [GitHub Issues](https://github.com/ilyaskhan/zyr0-studio/issues)
 3. Review [Troubleshooting](?doc=troubleshooting)
 
 **Still stuck?**

@@ -1,5 +1,5 @@
 /**
- * OSW Studio Desktop — Electron main process.
+ * ZYR0 Studio Desktop — Electron main process.
  *
  * Boots the bundled Next.js standalone server (Server Mode) on a free local
  * port and points a BrowserWindow at it. This file is the single source of
@@ -24,8 +24,8 @@ const isMac = process.platform === 'darwin';
 // Headless CI/diagnostic flag: runs the real boot path as a pass/fail command
 // (no window). End users never pass it, so normal launch is unaffected.
 const isSelfTest = process.argv.includes('--self-test') || process.env.OSW_SELFTEST === '1';
-const RELEASES_URL = 'https://github.com/o-stahl/osw-studio/releases/latest';
-const RELEASES_API_URL = 'https://api.github.com/repos/o-stahl/osw-studio/releases/latest';
+const RELEASES_URL = 'https://github.com/ilyaskhan/zyr0-studio/releases/latest';
+const RELEASES_API_URL = 'https://api.github.com/repos/ilyaskhan/zyr0-studio/releases/latest';
 
 let mainWindow: BrowserWindow | null = null;
 let serverPort: number | null = null;
@@ -147,7 +147,7 @@ function postJson(url: string): Promise<{ status: number; body: string }> {
  * system-Node smoke test misses.
  */
 async function runSelfTest(): Promise<void> {
-  console.log(`[self-test] OSW Studio Desktop v${app.getVersion()} on ${process.platform}/${process.arch}`);
+  console.log(`[self-test] ZYR0 Studio Desktop v${app.getVersion()} on ${process.platform}/${process.arch}`);
   console.log(`[self-test] electron=${process.versions.electron} node=${process.versions.node} abi(modules)=${process.versions.modules}`);
   try {
     // Bind + probe 127.0.0.1 explicitly: `localhost` can resolve to IPv6 in CI
@@ -200,7 +200,7 @@ function diagnosticPage(rawTitle: string, rawDetail: string): string {
   const detail = escapeHtml(rawDetail);
   const logPath = escapeHtml(path.join(app.getPath('userData'), 'logs', 'main.log'));
   const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>OSW Studio — Problem</title>
+<html><head><meta charset="utf-8"><title>ZYR0 Studio — Problem</title>
 <style>
   body { font-family: system-ui, sans-serif; background: #121212; color: #eaeaea; margin: 0;
          display: flex; align-items: center; justify-content: center; min-height: 100vh; }
@@ -212,7 +212,7 @@ function diagnosticPage(rawTitle: string, rawDetail: string): string {
 <body><div class="box">
   <h1>${title}</h1>
   <p>${detail}</p>
-  <p>OSW Studio Desktop v${app.getVersion()}</p>
+  <p>ZYR0 Studio Desktop v${app.getVersion()}</p>
   <ul>
     <li>Restarting the app usually resolves transient startup problems.</li>
     <li>If this happened after an update, download the latest installer from the
@@ -274,7 +274,7 @@ async function promptRestartToUpdate(version: string): Promise<void> {
   const { response } = await dialog.showMessageBox({
     type: 'info',
     title: 'Update ready',
-    message: `OSW Studio v${version} has been downloaded.`,
+    message: `ZYR0 Studio v${version} has been downloaded.`,
     detail: 'Restart now to apply the update, or keep working — it will NOT install until you choose to.',
     buttons: ['Restart now', 'Later'],
     defaultId: 0,
@@ -343,7 +343,7 @@ async function checkForUpdatesElectron(interactive: boolean): Promise<void> {
     const version = result?.updateInfo?.version;
     if (!version || !isNewerVersion(version, app.getVersion())) {
       if (interactive) {
-        dialog.showMessageBox({ type: 'info', message: 'You are on the latest version.', detail: `OSW Studio v${app.getVersion()}` });
+        dialog.showMessageBox({ type: 'info', message: 'You are on the latest version.', detail: `ZYR0 Studio v${app.getVersion()}` });
       }
       return;
     }
@@ -352,7 +352,7 @@ async function checkForUpdatesElectron(interactive: boolean): Promise<void> {
     const { response } = await dialog.showMessageBox({
       type: 'info',
       title: 'Update available',
-      message: `OSW Studio v${version} is available.`,
+      message: `ZYR0 Studio v${version} is available.`,
       detail: `You are on v${app.getVersion()}. If you download, it downloads in the background (progress shows on the taskbar) and prompts you to restart when it is ready. It will not install until you choose to.`,
       buttons: ['Download', 'Skip this version', 'Later'],
       defaultId: 0,
@@ -396,7 +396,7 @@ async function checkForUpdatesMac(interactive: boolean): Promise<void> {
     const version = String(release.tag_name || '').replace(/^desktop-v/, '');
     if (!version || !isNewerVersion(version, app.getVersion())) {
       if (interactive) {
-        dialog.showMessageBox({ type: 'info', message: 'You are on the latest version.', detail: `OSW Studio v${app.getVersion()}` });
+        dialog.showMessageBox({ type: 'info', message: 'You are on the latest version.', detail: `ZYR0 Studio v${app.getVersion()}` });
       }
       return;
     }
@@ -405,7 +405,7 @@ async function checkForUpdatesMac(interactive: boolean): Promise<void> {
     const { response } = await dialog.showMessageBox({
       type: 'info',
       title: 'Update available',
-      message: `OSW Studio v${version} is available.`,
+      message: `ZYR0 Studio v${version} is available.`,
       detail: `You are on v${app.getVersion()}. Auto-update is not available on macOS (the app is unsigned) — download the new version from the releases page. Your projects and data are kept.`,
       buttons: ['Open releases page', 'Skip this version', 'Later'],
       defaultId: 0,
@@ -450,7 +450,7 @@ function buildMenu(): void {
         { label: 'Check for Updates…', click: () => checkForUpdates(true) },
         { label: 'Open Releases Page', click: () => shell.openExternal(RELEASES_URL) },
         { type: 'separator' as const },
-        { label: 'Report an Issue', click: () => shell.openExternal('https://github.com/o-stahl/osw-studio/issues') },
+        { label: 'Report an Issue', click: () => shell.openExternal('https://github.com/ilyaskhan/zyr0-studio/issues') },
         { label: 'Open Logs Folder', click: () => {
           const logDir = path.join(app.getPath('userData'), 'logs');
           try { fs.mkdirSync(logDir, { recursive: true }); } catch { /* opening still surfaces the path */ }
@@ -472,7 +472,7 @@ async function createWindow(port: number): Promise<void> {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    title: 'OSW Studio',
+    title: 'ZYR0 Studio',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -524,7 +524,7 @@ app.whenReady().then(async () => {
     return;
   }
 
-  logToFile(`OSW Studio Desktop v${app.getVersion()} starting on ${process.platform}/${process.arch}`);
+  logToFile(`ZYR0 Studio Desktop v${app.getVersion()} starting on ${process.platform}/${process.arch}`);
   buildMenu();
   try {
     if (isDev) {
@@ -539,9 +539,9 @@ app.whenReady().then(async () => {
     const message = (error as Error)?.message || String(error);
     logToFile(`Failed to start: ${message}`);
     if (!mainWindow) {
-      mainWindow = new BrowserWindow({ width: 900, height: 600, title: 'OSW Studio' });
+      mainWindow = new BrowserWindow({ width: 900, height: 600, title: 'ZYR0 Studio' });
     }
-    mainWindow.loadURL(diagnosticPage('OSW Studio failed to start', message));
+    mainWindow.loadURL(diagnosticPage('ZYR0 Studio failed to start', message));
   }
 });
 

@@ -63,7 +63,7 @@ export function generateTrackingScript(options: TrackingScriptOptions): string {
   } = options;
 
   return `
-<!-- OSW Studio Analytics -->
+<!-- ZYR0 Studio Analytics -->
 <script>
 (function() {
   'use strict';

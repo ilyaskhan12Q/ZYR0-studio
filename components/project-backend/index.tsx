@@ -660,9 +660,7 @@ export function ProjectSettingsPanel({ project, onProjectUpdate, enabled, worksp
                           Backend features require Server Mode. Deploy to a self-hosted instance to use edge functions, secrets, and database features.
                         </p>
                         <a
-                          href="https://github.com/o-stahl/osw-studio"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href="?doc=server-mode"
                           className="text-sm text-primary hover:underline"
                         >
                           View setup guide

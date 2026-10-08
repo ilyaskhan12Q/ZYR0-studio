@@ -144,8 +144,8 @@ export function TemplateManager({ onProjectCreated }: TemplateManagerProps) {
           name: template.name,
           description: template.description,
           version: '1.0.0',
-          author: template.metadata?.author || 'OSW Studio',
-          license: template.metadata?.license || 'mit',
+          author: template.metadata?.author || 'ZYR0 Studio',
+          license: template.metadata?.license || 'apache-2.0',
           tags: template.metadata?.tags || []
         });
 

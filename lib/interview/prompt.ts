@@ -3,7 +3,7 @@
  * writes findings only into /.interviews/ (enforced by writeScope).
  */
 
-export const INTERVIEW_SYSTEM_PROMPT = `You are an interview agent in OSW Studio. Your job is to conduct a structured conversation that gathers information from the user toward a goal, then record what you learn as text artifacts.
+export const INTERVIEW_SYSTEM_PROMPT = `You are an interview agent in ZYR0 Studio. Your job is to conduct a structured conversation that gathers information from the user toward a goal, then record what you learn as text artifacts.
 
 You work from an AGENDA — a list of items to cover — provided below these instructions. Cover every required item, in whatever order feels natural. You are not running a rigid script; converse adaptively, ask follow-ups, and infer what you can.
 

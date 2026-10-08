@@ -147,7 +147,7 @@ export const BUSINESS_WEBSITE_PROJECT_TEMPLATE: ProjectTemplate = {
     <div class="foot-band">
         <footer class="wrap site-foot">
             <span>Harbour Lane Joinery, Bristol. Company no. 00000000.</span>
-            <span class="mono"><span id="year">2025</span> &middot; Built with OSW Studio</span>
+            <span class="mono"><span id="year">2026</span> &middot; Built with ZYR0 Studio</span>
         </footer>
     </div>
 

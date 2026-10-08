@@ -40,9 +40,12 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/zyr0-logo.svg",
-    shortcut: "/zyr0-logo.svg",
-    apple: "/zyr0-logo.svg",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/zyr0-logo.png", type: "image/png" }
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 

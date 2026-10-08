@@ -2,8 +2,8 @@
 
 ## Setup (2 steps)
 
-1. In OSW Studio, go to Deployment Settings and enter your domain (e.g., `sweetcandies.com`)
-2. In your DNS provider, add an A record pointing to your OSW Studio server's IP address
+1. In ZYR0 Studio, go to Deployment Settings and enter your domain (e.g., `sweetcandies.com`)
+2. In your DNS provider, add an A record pointing to your ZYR0 Studio server's IP address
 
 That's it. The server handles SSL certificates automatically via Let's Encrypt.
 
@@ -11,20 +11,20 @@ That's it. The server handles SSL certificates automatically via Let's Encrypt.
 
 When you publish a deployment with a custom domain:
 
-1. OSW Studio registers the domain in its routing table
+1. ZYR0 Studio registers the domain in its routing table
 2. The reverse proxy (Caddy) intercepts requests to your domain
 3. Caddy provisions an SSL certificate automatically (on-demand TLS)
 4. Requests are routed to your deployment's static files
 5. `/api/` paths (edge functions, analytics) pass through without rewriting
 
-## What OSW Studio Handles
+## What ZYR0 Studio Handles
 
 - Domain registration in the routing table
 - Root-relative asset paths when a custom domain is set
 - SEO meta tags, sitemaps, and canonical URLs using your domain
 - Analytics origin validation for your domain
 
-## What OSW Studio Does Not Handle
+## What ZYR0 Studio Does Not Handle
 
 - DNS configuration (you add the A record)
 - SSL certificates (Caddy handles this automatically)
@@ -32,9 +32,9 @@ When you publish a deployment with a custom domain:
 
 ## For Self-Hosted Instances
 
-Your OSW Studio instance needs a reverse proxy with TLS support. See `docs/SELF_HOSTED_DOMAINS.md` for API endpoints and proxy requirements.
+Your ZYR0 Studio instance needs a reverse proxy with TLS support. See `docs/SELF_HOSTED_DOMAINS.md` for API endpoints and proxy requirements.
 
-## For Hosted Instances (oswstudio.com)
+## For Hosted Instances (zyr0studio.com)
 
 Custom domains are handled automatically by the platform. Just add your DNS A record.
 
