@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   RefreshCw,
@@ -21,6 +21,14 @@ import Link from 'next/link';
 import { vfs } from '@/lib/vfs';
 import { templateService } from '@/lib/vfs/template-service';
 import { skillsService } from '@/lib/vfs/skills';
+import { BUILT_IN_TEMPLATES } from '@/lib/vfs/templates';
+import { PLACEHOLDER_USER_NAME } from '@/lib/constants/branding';
+import { HeroCanvas } from './dashboard/hero-canvas';
+import { CommandBar, type CommandSubmission } from './dashboard/command-bar';
+import { GalleryPanel } from './dashboard/gallery-panel';
+import { formatRelativeTime, greetingFor } from './dashboard/utils';
+import { readRecentlyViewed, recordProjectView } from '@/lib/recently-viewed';
+import type { GalleryProject, GalleryTemplate } from './dashboard/types';
 import pkg from '@/package.json';
 
 const isServerMode = process.env.NEXT_PUBLIC_SERVER_MODE === 'true';
@@ -84,12 +92,9 @@ interface BrowserDashboardData {
     title: string;
     highlights: string[];
   } | null;
-  recentProjects: Array<{
-    id: string;
-    name: string;
-    description: string | null;
-    updatedAt: string;
-  }>;
+  /** Every project, newest first — feeds the gallery tabs. */
+  projects: GalleryProject[];
+  templates: GalleryTemplate[];
 }
 
 // Fetch and parse the latest What's New entry from WHATS_NEW.md
@@ -142,26 +147,43 @@ async function fetchBrowserModeData(): Promise<BrowserDashboardData> {
   await vfs.init();
 
   const projects = await vfs.listProjects();
-  const templates = await templateService.listCustomTemplates();
+  const customTemplates = await templateService.listCustomTemplates();
   const skills = await skillsService.getAllSkills();
   const whatsNew = await fetchWhatsNew();
+
+  const sorted = [...projects].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
 
   return {
     content: {
       projects: projects.length,
-      templates: templates.length,
+      templates: customTemplates.length,
       skills: skills.length,
     },
     whatsNew,
-    recentProjects: projects
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 3)
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || null,
-        updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
+    projects: sorted.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || null,
+      updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
+      previewImage: p.previewImage,
+    })),
+    // Built-ins first so the gallery opens on something recognisable.
+    templates: [
+      ...BUILT_IN_TEMPLATES.map((t) => ({
+        id: `builtin:${t.id}`,
+        name: t.name,
+        description: t.description,
+        isBuiltIn: true,
       })),
+      ...customTemplates.map((t) => ({
+        id: `custom:${t.id}`,
+        name: t.name,
+        description: t.description,
+        isBuiltIn: false,
+      })),
+    ],
   };
 }
 
@@ -195,21 +217,6 @@ function formatNumber(num: number): string {
     return (num / 1000).toFixed(1) + 'K';
   }
   return num.toString();
-}
-
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
 }
 
 // Quick Actions Bar
@@ -408,89 +415,12 @@ function CompactOverview({
   );
 }
 
-// Browser mode Overview (subset of stats)
-function BrowserOverview({
-  data,
-  loading,
-  onRefresh,
-}: {
-  data: BrowserDashboardData;
-  loading: boolean;
-  onRefresh: () => void;
-}) {
-  const stats = [
-    { label: 'Version', value: `v${pkg.version}` },
-    { label: 'Projects', value: formatNumber(data.content.projects) },
-    { label: 'Templates', value: formatNumber(data.content.templates) },
-    { label: 'Skills', value: formatNumber(data.content.skills) },
-  ];
-
-  const half = Math.ceil(stats.length / 2);
-  const leftColumn = stats.slice(0, half);
-  const rightColumn = stats.slice(half);
-
-  return (
-    <div className="bg-card rounded-xl border border-border p-4 flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-foreground">Content Overview</h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRefresh}
-          disabled={loading}
-          className="h-7 px-2"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 flex-1 content-start">
-        <div className="space-y-1.5">
-          {leftColumn.map((stat) => (
-            <div key={stat.label} className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">{stat.label}</span>
-              <span className="text-sm font-medium text-foreground">{stat.value}</span>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-1.5">
-          {rightColumn.map((stat) => (
-            <div key={stat.label} className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">{stat.label}</span>
-              <span className="text-sm font-medium text-foreground">{stat.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Recent Projects Card
+// Recent Projects Card (server-mode admin dashboard)
 function RecentProjectsCard({
   projects,
-  onNavigate,
-  onProjectSelect,
 }: {
-  projects: DashboardData['recentProjects'] | BrowserDashboardData['recentProjects'];
-  onNavigate?: (view: string) => void;
-  onProjectSelect?: (projectId: string) => void;
+  projects: DashboardData['recentProjects'];
 }) {
-  const handleViewAll = (e: React.MouseEvent) => {
-    if (!isServerMode && onNavigate) {
-      e.preventDefault();
-      onNavigate('projects');
-    }
-  };
-
-  const handleProjectClick = (e: React.MouseEvent, projectId: string) => {
-    if (!isServerMode && onProjectSelect) {
-      e.preventDefault();
-      onProjectSelect(projectId);
-    }
-  };
-
-  const viewAllHref = isServerMode ? '/admin/projects' : '#';
-
   return (
     <div className="bg-card rounded-xl border border-border p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
@@ -499,8 +429,7 @@ function RecentProjectsCard({
           <h3 className="text-sm font-medium text-foreground">Recent Projects</h3>
         </div>
         <Link
-          href={viewAllHref}
-          onClick={handleViewAll}
+          href="/admin/projects"
           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5"
         >
           View all
@@ -516,8 +445,7 @@ function RecentProjectsCard({
           {projects.slice(0, 3).map((project) => (
             <Link
               key={project.id}
-              href={isServerMode ? `/admin/projects?open=${project.id}` : '#'}
-              onClick={(e) => handleProjectClick(e, project.id)}
+              href={`/admin/projects?open=${project.id}`}
               className="flex items-center justify-between text-xs py-1.5 px-2 bg-muted/50 rounded hover:bg-muted transition-colors"
             >
               <span className="text-foreground truncate flex-1 mr-2">{project.name}</span>
@@ -672,22 +600,26 @@ async function fetchWorkspaceData(workspaceId: string): Promise<BrowserDashboard
   const data = await response.json();
   const whatsNew = await fetchWhatsNew();
 
+  const projects: GalleryProject[] = (data.projects || [])
+    .slice()
+    .sort((a: { updatedAt: string }, b: { updatedAt: string }) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .map((p: { id: string; name: string; description?: string | null; updatedAt: string }) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description ?? null,
+      updatedAt: p.updatedAt,
+    }));
+
   return {
     content: {
-      projects: data.summary?.projectCount || 0,
+      projects: data.summary?.projectCount || projects.length,
       templates: data.summary?.templateCount || 0,
       skills: data.summary?.skillCount || 0,
     },
     whatsNew,
-    recentProjects: (data.projects || [])
-      .sort((a: { updatedAt: string }, b: { updatedAt: string }) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 3)
-      .map((p: { id: string; name: string; updatedAt: string }) => ({
-        id: p.id,
-        name: p.name,
-        description: null,
-        updatedAt: p.updatedAt,
-      })),
+    projects,
+    // The sync-status endpoint reports template *counts*, not the templates themselves.
+    templates: [],
   };
 }
 
@@ -742,10 +674,59 @@ export function DashboardView({ workspaceId, onNavigate, onProjectSelect, onStar
   }, [router, onStartTour]);
 
   const handleProjectSelect = useCallback((projectId: string) => {
-    if (!isServerMode && onProjectSelect) {
-      onProjectSelect(projectId);
+    recordProjectView(projectId);
+
+    if (isServerMode) {
+      const base = workspaceId ? `/w/${workspaceId}` : '/admin';
+      router.push(`${base}/projects?open=${projectId}`);
+      return;
     }
-  }, [onProjectSelect]);
+
+    onProjectSelect?.(projectId);
+  }, [workspaceId, router, onProjectSelect]);
+
+  // Recently viewed is local-only: the app has no server-side view history.
+  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([]);
+  useEffect(() => {
+    setRecentlyViewedIds(readRecentlyViewed());
+  }, [browserData]);
+
+  const recentlyViewedProjects = useMemo<GalleryProject[]>(() => {
+    if (!browserData) return [];
+    const byId = new Map(browserData.projects.map(p => [p.id, p]));
+    return recentlyViewedIds
+      .map(id => byId.get(id))
+      .filter((project): project is GalleryProject => Boolean(project));
+  }, [browserData, recentlyViewedIds]);
+
+  /**
+   * The hero prompt becomes the new project's description. The dialog reads and clears the
+   * stash on open, so a cancelled create does not silently reuse an old prompt.
+   */
+  const handleCommandSubmit = useCallback((submission: CommandSubmission) => {
+    const reference = submission.attachments.length > 0
+      ? ` Reference files: ${submission.attachments.join(', ')}.`
+      : '';
+    const description = `${submission.prompt}${reference}`.trim();
+
+    try {
+      if (description) {
+        sessionStorage.setItem('zyr0:new-project-prompt', JSON.stringify({ description }));
+      } else {
+        sessionStorage.removeItem('zyr0:new-project-prompt');
+      }
+    } catch {
+      // Private mode: the dialog just opens without a prefill.
+    }
+
+    if (isServerMode && workspaceId) {
+      router.push(`/w/${workspaceId}/projects?action=create`);
+    } else if (isServerMode) {
+      router.push('/admin/projects?action=create');
+    } else {
+      onNavigate?.('projects:create');
+    }
+  }, [workspaceId, router, onNavigate]);
 
   // Loading state
   const hasData = !!serverData || !!browserData;
@@ -753,7 +734,7 @@ export function DashboardView({ workspaceId, onNavigate, onProjectSelect, onStar
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <Spinner size={32} color="#f97316" className="mx-auto" />
+          <Spinner size={32} color="#2563EB" className="mx-auto" />
           <p className="mt-3 text-sm text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
@@ -808,32 +789,68 @@ export function DashboardView({ workspaceId, onNavigate, onProjectSelect, onStar
 
   // Browser mode render OR server mode non-admin workspace render
   if (browserData) {
-    const hasWhatsNew = browserData.whatsNew !== null;
+    const docsHref = isServerMode
+      ? `${workspaceId ? `/w/${workspaceId}` : '/admin'}/docs?doc=whats-new`
+      : '#';
+
+    const handleWhatsNewClick = (e: React.MouseEvent) => {
+      if (!isServerMode && onNavigate) {
+        e.preventDefault();
+        window.history.pushState({}, '', '/?doc=whats-new');
+        onNavigate('docs');
+      }
+    };
 
     return (
-      <div className="h-full overflow-y-auto p-6">
-        {/* Quick Actions */}
-        <QuickActionsBar onStartTour={handleStartTour} onNavigate={onNavigate} />
+      <div className="zyr0-surface h-full overflow-y-auto bg-zyr0-obsidian">
+        <HeroCanvas>
+          {/* Hero top strip — keeps version + changelog discoverable without a card. */}
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 pt-6">
+            <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-zyr0-text-faint">
+              Dashboard
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-zyr0-hairline px-2 py-0.5 text-[10px] tabular-nums text-zyr0-text-faint">
+                v{browserData.whatsNew?.version ?? pkg.version}
+              </span>
+              <Link
+                href={docsHref}
+                onClick={handleWhatsNewClick}
+                className="rounded-full border border-zyr0-hairline px-2 py-0.5 text-[10px] text-zyr0-text-dim transition-colors hover:border-white/20 hover:text-zyr0-text"
+              >
+                What&apos;s new
+              </Link>
+            </div>
+          </div>
 
-        {/* Row 1: Content Overview + What's New */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 [&>*]:min-h-[160px]">
-          <BrowserOverview data={browserData} loading={loading} onRefresh={fetchData} />
-          {hasWhatsNew && (
-            <WhatsNewCard
-              whatsNew={browserData.whatsNew!}
-              onNavigate={onNavigate}
-            />
-          )}
-        </div>
+          <div className="mx-auto w-full max-w-3xl px-6 pb-32 pt-14 text-center sm:pt-20">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zyr0-text-faint">
+              {greetingFor()}, {PLACEHOLDER_USER_NAME}
+            </p>
+            <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-zyr0-text sm:text-[2.6rem] sm:leading-[1.1]">
+              Ask ZYR0-Studio to build
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-zyr0-text-dim">
+              Describe a page, an app or a component. It becomes a project you can edit, preview and publish.
+            </p>
+            <div className="mt-9 text-left">
+              <CommandBar
+                onSubmit={handleCommandSubmit}
+                onOpenModelSettings={() => onNavigate?.('settings')}
+              />
+            </div>
+          </div>
+        </HeroCanvas>
 
-        {/* Row 2: Recent Projects (no Deployments in browser mode) */}
-        <div className="mb-4 lg:w-1/2">
-          <RecentProjectsCard
-            projects={browserData.recentProjects}
-            onNavigate={onNavigate}
-            onProjectSelect={handleProjectSelect}
-          />
-        </div>
+        <GalleryPanel
+          projects={browserData.projects}
+          recentProjects={recentlyViewedProjects}
+          templates={browserData.templates}
+          onProjectSelect={handleProjectSelect}
+          onViewAllProjects={() => onNavigate?.('projects')}
+          onBrowseTemplates={() => onNavigate?.('templates')}
+          onNewProject={() => onNavigate?.('projects:create')}
+        />
       </div>
     );
   }

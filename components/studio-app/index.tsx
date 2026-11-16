@@ -23,6 +23,7 @@ import { useProviderAutoAssign } from '@/lib/hooks/use-provider-auto-assign';
 import { useModelConfigSignal } from '@/lib/hooks/use-model-config-signal';
 import { createProjectFromTemplate } from '@/lib/vfs/templates/utils';
 import { BAREBONES_PROJECT_TEMPLATE } from '@/lib/vfs/templates/barebones';
+import { recordProjectView } from '@/lib/recently-viewed';
 
 // Module-level guard: prevents double token exchange when React strict mode
 // re-runs the effect, or if the component remounts before URL cleanup.
@@ -317,6 +318,8 @@ function StudioInner() {
     setSelectedProject(project);
     writeProjectParam(project.id);
     track('project_open');
+    // Feeds the dashboard's "Recently viewed" tab; no-op where localStorage is unavailable.
+    recordProjectView(project.id);
   }, []);
 
   const handleShelfNavigate = useCallback(async (info: { id: string; name: string }) => {

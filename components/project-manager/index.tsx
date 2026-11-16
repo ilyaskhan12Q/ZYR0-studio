@@ -134,11 +134,27 @@ export function ProjectManager({ onProjectSelect, hideHeader = false, hideFooter
     }
   }, [isCreateDirty]);
 
-  // Auto-open create dialog when navigated from dashboard "New Project"
+  // Auto-open create dialog when navigated from the dashboard hero or "New Project".
+  // A prompt typed into the hero arrives as a one-shot stash in sessionStorage and is used as the
+  // description; it is cleared on read so a later create never silently reuses an old prompt.
   useEffect(() => {
-    if (autoCreate) {
-      setCreateDialogOpen(true);
+    if (!autoCreate) return;
+
+    try {
+      const raw = sessionStorage.getItem('zyr0:new-project-prompt');
+      if (raw) {
+        sessionStorage.removeItem('zyr0:new-project-prompt');
+        const parsed = JSON.parse(raw) as { description?: unknown };
+        if (typeof parsed.description === 'string' && parsed.description.trim()) {
+          setNewProjectDescription(parsed.description.trim().slice(0, 200));
+          setCreateMode('quick');
+        }
+      }
+    } catch {
+      // Malformed or unavailable storage: fall through and open the dialog as usual.
     }
+
+    setCreateDialogOpen(true);
   }, [autoCreate]);
 
   // Helper to get template name from ID for display
