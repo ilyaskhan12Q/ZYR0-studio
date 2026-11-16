@@ -3,63 +3,67 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Project } from '@/lib/vfs/types';
 import { vfs } from '@/lib/vfs';
-import { Button } from '@/components/ui/button';
-import { Logo } from '@/components/ui/logo';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  FolderOpen,
-  Globe,
-  Users,
-  LayoutTemplate,
-  ClipboardList,
-  Sparkles,
-  Settings,
-  Info,
-  TestTube,
-  Github,
-  ChevronLeft,
-  ChevronRight,
   BookOpen,
   ChevronDown,
+  ClipboardList,
   Cloud,
-  LogOut,
+  FolderOpen,
+  Github,
+  Globe,
+  Info,
   LayoutDashboard,
+  LayoutTemplate,
+  LogOut,
+  Search,
+  Settings,
+  Sparkles,
+  TestTube,
   UserCircle,
+  Users,
 } from 'lucide-react';
 import { DOCS_ITEMS } from '@/lib/constants/docs';
 import { cn } from '@/lib/utils';
 import { useProjectSyncState } from '@/lib/hooks/use-project-sync-state';
-import { useRouter, useSearchParams } from 'next/navigation';
 import pkg from '@/package.json';
 import { WorkspaceSwitcher } from '@/components/workspace-switcher';
+import { BrandHeader } from './brand-header';
+import { NavItem, SubNavItem } from './nav-item';
+import { ProjectsQuicklist } from './projects-quicklist';
+import { UserCard } from './user-card';
+import type { SidebarItem } from './types';
 
 // Collapsed sidebar width
 export const COLLAPSED_SIDEBAR_WIDTH = 56; // Width in pixels for icon-only buttons
 
-interface SidebarItem {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  path?: string;
-  action?: string;
-  href?: string;
-  serverModeOnly?: boolean;
-  adminOnly?: boolean;
-  managedOnly?: boolean;
-  hasRecentProjects?: boolean; // Special flag for Projects to show recent projects as sub-items
-  subItems?: {
-    id: string;
-    label: string;
-    icon: React.ElementType;
-    file?: string; // For docs
-  }[];
-}
+/** Placeholder identity/credit values until a real account + billing source exists. */
+const PLACEHOLDER_USER_NAME = 'Ilyas';
+const PLACEHOLDER_CREDITS_USED = 2400;
+const PLACEHOLDER_CREDITS_TOTAL = 5000;
 
-const SIDEBAR_ITEMS: SidebarItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
-  { id: 'projects', label: 'Projects', icon: FolderOpen, path: 'projects', hasRecentProjects: true },
+const SETTINGS_SUB_ITEMS: SidebarItem['subItems'] = [
+  { id: 'application', label: 'Application', icon: Settings },
+  { id: 'model', label: 'Provider & Model', icon: Sparkles },
+];
+
+/**
+ * Primary navigation. `Search` is an action, not a view: it opens the command palette.
+ * Item ids are stable — only labels changed (Dashboard → Home) so routing, the guided tour and
+ * deep links keep working.
+ */
+const PRIMARY_ITEMS: SidebarItem[] = [
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard, path: 'dashboard' },
+  { id: 'search', label: 'Search', icon: Search, action: 'search' },
+  { id: 'projects', label: 'Projects', icon: FolderOpen, path: 'projects' },
+  { id: 'skills', label: 'Skills', icon: Sparkles, path: 'skills' },
+  { id: 'settings', label: 'Settings', icon: Settings, path: 'settings', subItems: SETTINGS_SUB_ITEMS },
+];
+
+/** Everything else, behind the "More" disclosure. */
+const SECONDARY_ITEMS: SidebarItem[] = [
   { id: 'deployments', label: 'Deployments', icon: Globe, path: 'deployments', serverModeOnly: true },
   { id: 'templates', label: 'Templates', icon: LayoutTemplate, path: 'templates' },
-  { id: 'skills', label: 'Skills', icon: Sparkles, path: 'skills' },
   { id: 'interviews', label: 'Interviews', icon: ClipboardList, path: 'interviews' },
   { id: 'users', label: 'Users', icon: Users, path: 'users', serverModeOnly: true, adminOnly: true, managedOnly: true },
   {
@@ -67,22 +71,12 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     label: 'Docs',
     icon: BookOpen,
     path: 'docs',
-    subItems: DOCS_ITEMS.map(doc => ({
+    subItems: DOCS_ITEMS.map((doc) => ({
       id: doc.id,
       label: doc.title,
       icon: doc.icon,
       file: doc.file,
-    }))
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    path: 'settings',
-    subItems: [
-      { id: 'application', label: 'Application', icon: Settings },
-      { id: 'model', label: 'Provider & Model', icon: Sparkles },
-    ]
+    })),
   },
   { id: 'tour', label: 'Guided Tour', icon: Info, action: 'start-tour' },
   { id: 'tester', label: 'Benchmark', icon: TestTube, path: '/test-generation' },
@@ -137,16 +131,16 @@ function SidebarContent({
   const [hovering, setHovering] = useState(false);
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
   const [loadingRecentProjects, setLoadingRecentProjects] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [userName, setUserName] = useState(PLACEHOLDER_USER_NAME);
 
   // Initialize expandedItems based on currentView to prevent flash
   const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     if (currentView === 'docs') initial.add('docs');
-    if (currentView === 'projects') initial.add('projects');
     if (currentView === 'settings') initial.add('settings');
     return initial;
   });
-  const [logoHover, setLogoHover] = useState(false);
 
   const isServerMode = process.env.NEXT_PUBLIC_SERVER_MODE === 'true';
   // Read-only: the gallery owns refreshing this, so the sidebar adds no extra request.
@@ -158,6 +152,8 @@ function SidebarContent({
     if (!isServerMode) return;
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => {
       if (data?.user?.isAdmin) setIsAdmin(true);
+      const name = data?.user?.name || (data?.user?.email ? String(data.user.email).split('@')[0] : null);
+      if (name) setUserName(name);
     }).catch(() => {});
   }, [isServerMode]);
 
@@ -175,16 +171,16 @@ function SidebarContent({
   // On mobile, sidebar is never collapsed - it's either open or closed via mobileOpen
   const collapsed = !isMobile && !pinned && !hovering;
 
-  // Auto-expand items when on their view
+  // Auto-expand items when on their view, and reveal "More" when the active view lives inside it.
   useEffect(() => {
     if (currentView === 'docs') {
       setExpandedItems(prev => new Set(prev).add('docs'));
     }
-    if (currentView === 'projects') {
-      setExpandedItems(prev => new Set(prev).add('projects'));
-    }
     if (currentView === 'settings') {
       setExpandedItems(prev => new Set(prev).add('settings'));
+    }
+    if (SECONDARY_ITEMS.some(item => item.id === currentView)) {
+      setMoreOpen(true);
     }
   }, [currentView]);
 
@@ -197,7 +193,7 @@ function SidebarContent({
         const sorted = projects.sort((a, b) =>
           b.updatedAt.getTime() - a.updatedAt.getTime()
         );
-        setRecentProjects(sorted.slice(0, 3));
+        setRecentProjects(sorted.slice(0, 4));
       } catch (error) {
         console.error('Failed to load recent projects:', error);
       } finally {
@@ -206,7 +202,6 @@ function SidebarContent({
     }
     loadRecentProjects();
   }, []);
-
 
   // Load pinned state from localStorage
   useEffect(() => {
@@ -251,10 +246,13 @@ function SidebarContent({
 
   const isManagedMode = !!GATEWAY_URL;
 
-  // Filter sidebar items based on Server Mode
-  const visibleSidebarItems = SIDEBAR_ITEMS.filter(
-    item => (!item.serverModeOnly || isServerMode) && (!item.adminOnly || isAdmin) && (!item.managedOnly || isManagedMode)
-  );
+  const isVisible = (item: SidebarItem) =>
+    (!item.serverModeOnly || isServerMode) &&
+    (!item.adminOnly || isAdmin) &&
+    (!item.managedOnly || isManagedMode);
+
+  const visiblePrimaryItems = PRIMARY_ITEMS.filter(isVisible);
+  const visibleSecondaryItems = SECONDARY_ITEMS.filter(isVisible);
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev => {
@@ -268,6 +266,34 @@ function SidebarContent({
     });
   };
 
+  const navigateToView = (viewId: string, path?: string) => {
+    onMobileOpenChange?.(false);
+
+    if (!path) {
+      onNavigate(viewId);
+      return;
+    }
+
+    // Check if path is absolute (starts with /)
+    if (path.startsWith('/')) {
+      router.push(path);
+    } else if (isServerMode) {
+      // System-wide items (users, workspaces) always go to /admin/
+      const systemItems = ['users', 'workspaces'];
+      if (systemItems.includes(viewId)) {
+        router.push(`/admin/${path}`);
+      } else if (workspaceId) {
+        router.push(`/w/${workspaceId}/${path}`);
+      } else {
+        router.push(`/admin/${path}`);
+      }
+    } else {
+      // Browser Mode: Use router.push to clear query params when navigating away from docs
+      router.push('/');
+      onNavigate(viewId);
+    }
+  };
+
   const handleItemAction = async (item: SidebarItem) => {
     // Close mobile menu when action is triggered
     onMobileOpenChange?.(false);
@@ -275,24 +301,9 @@ function SidebarContent({
     if (item.href) {
       window.open(item.href, '_blank', 'noopener,noreferrer');
     } else if (item.path) {
-      // Check if path is absolute (starts with /)
-      if (item.path.startsWith('/')) {
-        router.push(item.path);
-      } else if (isServerMode) {
-        // System-wide items (users, workspaces) always go to /admin/
-        const systemItems = ['users', 'workspaces'];
-        if (systemItems.includes(item.id)) {
-          router.push(`/admin/${item.path}`);
-        } else if (workspaceId) {
-          router.push(`/w/${workspaceId}/${item.path}`);
-        } else {
-          router.push(`/admin/${item.path}`);
-        }
-      } else {
-        // Browser Mode: Use router.push to clear query params when navigating away from docs
-        router.push('/');
-        onNavigate(item.id);
-      }
+      navigateToView(item.id, item.path);
+    } else if (item.action === 'search') {
+      window.dispatchEvent(new CustomEvent('zyr0:open-search'));
     } else if (item.action === 'start-tour' && onStartTour) {
       onStartTour();
     } else if (item.action === 'open-about' && onOpenAbout) {
@@ -313,24 +324,111 @@ function SidebarContent({
     }
   };
 
+  const handleProjectSelect = (projectId: string) => {
+    const project = recentProjects.find(p => p.id === projectId);
+    onMobileOpenChange?.(false);
+    if (project) onProjectSelect(project);
+  };
+
+  const renderItem = (item: SidebarItem) => {
+    const hasSubItems = !!(item.subItems && item.subItems.length > 0);
+    const isExpanded = expandedItems.has(item.id);
+    const isActive = currentView === item.id;
+
+    return (
+      <div key={item.id}>
+        <NavItem
+          item={item}
+          active={isActive}
+          collapsed={collapsed}
+          expanded={isExpanded}
+          hasChildren={hasSubItems}
+          onSelect={() => {
+            // For parents with children: clicking the row navigates if that is what the user
+            // is not already on, otherwise it toggles the group.
+            if (!hasSubItems || !isActive) {
+              handleItemAction(item);
+            } else {
+              toggleExpanded(item.id);
+            }
+          }}
+          onToggleExpand={() => toggleExpanded(item.id)}
+        />
+
+        {hasSubItems && isExpanded && (
+          <div className="mb-1 mt-0.5 space-y-0.5">
+            {item.subItems!.map((subItem) => {
+              // For docs, check currentDocId. For settings, check URL param or path
+              const wsBase = workspaceId ? `/w/${workspaceId}` : '/admin';
+              const isSubItemActive = subItem.file
+                ? currentDocId === subItem.id
+                : item.id === 'settings'
+                  ? currentSettingsTab === subItem.id
+                  : (isServerMode && (window.location.pathname === `${wsBase}/${item.id}/${subItem.id}` || window.location.pathname === `/admin/${item.id}/${subItem.id}`));
+
+              return (
+                <SubNavItem
+                  key={subItem.id}
+                  label={subItem.label}
+                  icon={subItem.icon}
+                  active={isSubItemActive}
+                  collapsed={collapsed}
+                  onClick={() => {
+                    onMobileOpenChange?.(false);
+                    if (isServerMode) {
+                      const subBase = workspaceId ? `/w/${workspaceId}` : '/admin';
+                      if (subItem.file) {
+                        // Docs sub-item
+                        router.push(`${subBase}/docs?doc=${subItem.id}`);
+                      } else {
+                        // Settings sub-item — the settings page reads the tab from
+                        // ?settings=, there is no /settings/<tab> route (that 404s).
+                        router.push(`${subBase}/${item.id}?settings=${subItem.id}`);
+                      }
+                    } else {
+                      // Browser mode
+                      if (subItem.file) {
+                        // Docs sub-item - navigate to specific doc
+                        router.push(`/?doc=${subItem.id}`);
+                        onNavigate(item.id);
+                      } else if (item.id === 'settings') {
+                        // Settings sub-item - use query param
+                        router.push(`/?settings=${subItem.id}`);
+                        onNavigate(item.id);
+                      } else {
+                        // Other sub-items
+                        router.push('/');
+                        onNavigate(item.id);
+                      }
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Mobile backdrop */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
           onClick={() => onMobileOpenChange?.(false)}
         />
       )}
 
       <div
         className={cn(
-          'flex flex-col h-screen bg-card transition-all duration-300',
+          'zyr0-surface flex flex-col h-screen bg-zyr0-obsidian text-zyr0-text transition-all duration-300',
           // Border: left on mobile (slides from right), right on desktop (stays on left)
-          'border-l md:border-l-0 md:border-r',
+          'border-l border-zyr0-hairline md:border-l-0 md:border-r',
           // Desktop behavior - always on left
           'md:relative md:left-0',
-          pinned ? 'md:relative' : 'md:absolute md:left-0 md:top-0 md:z-40 md:shadow-lg',
+          pinned ? 'md:relative' : 'md:absolute md:left-0 md:top-0 md:z-40 md:shadow-2xl md:shadow-black/60',
           // Mobile behavior - slide in from right, fixed 240px width
           'fixed right-0 top-0 z-50 w-60',
           // Desktop - 240px when expanded, or collapsed width
@@ -345,351 +443,152 @@ function SidebarContent({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-      {/* Logo/Brand */}
-      <button
-        onClick={() => {
-          // Mobile: close sidebar (if open), do nothing otherwise
-          // Desktop: toggle pinned state
-          if (isMobile) {
-            if (mobileOpen) {
+        <BrandHeader
+          collapsed={collapsed}
+          pinned={pinned}
+          isMobile={isMobile}
+          isServerMode={isServerMode}
+          version={pkg.version}
+          onBrandClick={() => {
+            if (isMobile) {
               onMobileOpenChange?.(false);
+            } else if (collapsed) {
+              togglePinned();
+            } else {
+              navigateToView('dashboard', 'dashboard');
             }
-            // On mobile, don't toggle pinned state
-          } else {
-            // Desktop: toggle pin/unpin
-            togglePinned();
-          }
-        }}
-        onMouseEnter={() => !isMobile && setLogoHover(true)}
-        onMouseLeave={() => !isMobile && setLogoHover(false)}
-        className={cn(
-          "p-3 border-b flex items-center gap-3 h-[54px] overflow-hidden w-full",
-          "hover:bg-accent/50 transition-colors cursor-pointer",
-          collapsed && "justify-center"
-        )}
-      >
-        {/* Icon container with position relative for chevron overlay */}
-        <div className="relative w-6 h-6 flex items-center justify-center flex-shrink-0">
-          {/* Logo - hidden on hover */}
-          <Logo
-            width={24}
-            height={24}
-            className={cn(
-              "transition-opacity absolute",
-              logoHover && "opacity-0"
-            )}
-          />
+          }}
+          onTogglePinned={togglePinned}
+        />
 
-          {/* Desktop chevron - visible on hover (desktop only) */}
-          {/* Left when pinned (collapse), Right when unpinned (expand) */}
-          {pinned ? (
-            <ChevronLeft
-              className={cn(
-                "hidden md:block h-6 w-6 transition-opacity absolute",
-                logoHover ? "opacity-100" : "opacity-0 pointer-events-none"
-              )}
-            />
-          ) : (
-            <ChevronRight
-              className={cn(
-                "hidden md:block h-6 w-6 transition-opacity absolute",
-                logoHover ? "opacity-100" : "opacity-0 pointer-events-none"
-              )}
-            />
-          )}
-        </div>
-
-        {!collapsed && (
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold whitespace-nowrap leading-none">
-              {logoHover && !pinned ? "Pin" : "ZYR0-Studio"}
-            </span>
-            {!(logoHover && !pinned) && (
-              <span className="text-[10px] leading-[10px] text-muted-foreground text-left mt-0.5">
-                {isServerMode ? `Server, v${pkg.version}` : `v${pkg.version}`}
-              </span>
-            )}
-          </div>
-        )}
-      </button>
-
-      {/* Workspace Switcher (Managed Mode only — standalone has a single implicit workspace) */}
-      {isServerMode && isManagedMode && !collapsed && (
-        <WorkspaceSwitcher workspaceId={workspaceId} />
-      )}
-
-      {/* Main Navigation - Single scrollable container */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {visibleSidebarItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentView === item.id;
-          const hasSubItems = (item.subItems && item.subItems.length > 0) || item.hasRecentProjects;
-          const isExpanded = expandedItems.has(item.id);
-
-          return (
-            <div key={item.id}>
-              {/* Wrap parent + children in container - always has padding to prevent layout shift */}
-              <div className={cn(
-                'p-1',
-                isExpanded && hasSubItems && 'bg-muted rounded-2xl'
-              )}>
-                <div className="relative">
-                  <Button
-                    variant="ghost"
-                    // Active item: neutral selected-surface + heavier weight instead of the orange primary fill.
-                    // Applied inline (not an arbitrary bg-[] class) so the CSS var always resolves.
-                    style={isActive && !hasSubItems ? { backgroundColor: 'var(--sidebar-active-surface)' } : undefined}
-                    className={cn(
-                      'w-full',
-                      collapsed ? 'justify-center px-2' : 'justify-start',
-                      !collapsed && hasSubItems && 'pr-8', // Make room for chevron
-                      isActive && !hasSubItems && 'font-semibold'
-                    )}
-                    onClick={() => {
-                      // Navigate if item has path (or other action)
-                      if (!hasSubItems || currentView !== item.id) {
-                        handleItemAction(item);
-                      }
-                    }}
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <Icon className={cn('h-4 w-4', !collapsed && 'mr-2')} />
-                    {!collapsed && item.label}
-                  </Button>
-                  {!collapsed && hasSubItems && (
-                    <button
-                      className={cn(
-                        'absolute right-2 top-1/2 -translate-y-1/2',
-                        'p-1 rounded hover:bg-accent transition-colors'
-                      )}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleExpanded(item.id);
-                      }}
-                    >
-                      <ChevronDown
-                        className={cn(
-                          'h-4 w-4 transition-transform',
-                          isExpanded && 'rotate-180'
-                        )}
-                      />
-                    </button>
-                  )}
-                </div>
-
-              {/* Recent Projects Sub-items (for Projects item) */}
-              {item.hasRecentProjects && isExpanded && (
-                <div className={cn(
-                  "mt-1 space-y-1",
-                  collapsed ? "flex flex-col items-center" : "ml-4"
-                )}>
-                  {loadingRecentProjects ? (
-                    // Skeleton loaders
-                    <>
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "flex items-center gap-2",
-                            collapsed ? "justify-center p-1" : "h-8 px-2"
-                          )}
-                        >
-                          <div className="h-3 w-3 bg-muted-foreground/20 rounded animate-pulse" />
-                          {!collapsed && <div className="h-3 flex-1 bg-muted-foreground/20 rounded animate-pulse" />}
-                        </div>
-                      ))}
-                    </>
-                  ) : recentProjects.length > 0 ? (
-                    // Actual projects
-                    recentProjects.map((project) => (
-                      <Button
-                        key={project.id}
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          collapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start text-xs"
-                        )}
-                        onClick={() => {
-                          onMobileOpenChange?.(false);
-                          onProjectSelect(project);
-                        }}
-                        title={project.name}
-                      >
-                        <FolderOpen className={cn("h-3 w-3 flex-shrink-0", !collapsed && "mr-2")} />
-                        {!collapsed && <span className="truncate">{project.name}</span>}
-                      </Button>
-                    ))
-                  ) : (
-                    !collapsed && (
-                      <div className="px-2 py-1 text-xs text-muted-foreground">
-                        No recent projects
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-
-              {/* Sub-items (for Docs and Settings) */}
-              {item.subItems && isExpanded && (
-                <div className={cn(
-                  "mt-1 space-y-1",
-                  collapsed ? "flex flex-col items-center" : "ml-4"
-                )}>
-                  {item.subItems.map((subItem) => {
-                    const SubIcon = subItem.icon;
-                    // For docs, check currentDocId. For settings, check URL param or path
-                    const wsBase = workspaceId ? `/w/${workspaceId}` : '/admin';
-                    const isSubItemActive = subItem.file
-                      ? currentDocId === subItem.id
-                      : item.id === 'settings'
-                        ? currentSettingsTab === subItem.id
-                        : (isServerMode && (window.location.pathname === `${wsBase}/${item.id}/${subItem.id}` || window.location.pathname === `/admin/${item.id}/${subItem.id}`));
-
-                    return (
-                      <Button
-                        key={subItem.id}
-                        variant={isSubItemActive ? 'default' : 'ghost'}
-                        size="sm"
-                        className={cn(
-                          collapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start text-xs"
-                        )}
-                        onClick={() => {
-                          onMobileOpenChange?.(false);
-                          if (isServerMode) {
-                            const subBase = workspaceId ? `/w/${workspaceId}` : '/admin';
-                            if (subItem.file) {
-                              // Docs sub-item
-                              router.push(`${subBase}/docs?doc=${subItem.id}`);
-                            } else {
-                              // Settings sub-item — the settings page reads the tab from
-                              // ?settings=, there is no /settings/<tab> route (that 404s).
-                              router.push(`${subBase}/${item.id}?settings=${subItem.id}`);
-                            }
-                          } else {
-                            // Browser mode
-                            if (subItem.file) {
-                              // Docs sub-item - navigate to specific doc
-                              router.push(`/?doc=${subItem.id}`);
-                              onNavigate(item.id);
-                            } else if (item.id === 'settings') {
-                              // Settings sub-item - use query param
-                              router.push(`/?settings=${subItem.id}`);
-                              onNavigate(item.id);
-                            } else {
-                              // Other sub-items
-                              router.push('/');
-                              onNavigate(item.id);
-                            }
-                          }
-                        }}
-                        title={collapsed ? subItem.label : undefined}
-                      >
-                        <SubIcon className={cn("h-3 w-3", !collapsed && "mr-2")} />
-                        {!collapsed && subItem.label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              )}
+        {/* Workspace Switcher (Managed Mode only — standalone has a single implicit workspace) */}
+        {isServerMode && isManagedMode ? (
+          !collapsed && <WorkspaceSwitcher workspaceId={workspaceId} />
+        ) : (
+          !collapsed && (
+            <div className="px-3 pt-3">
+              <div className="flex items-center gap-2 rounded-lg border border-zyr0-hairline bg-white/[0.02] px-2 py-1.5">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                <span className="truncate text-[11px] text-zyr0-text-dim">Local workspace</span>
               </div>
             </div>
-          );
-        })}
-      </nav>
+          )
+        )}
 
-      {/* System Actions (Server Mode only) */}
-      {isServerMode && (
-        <div className="border-t p-2 space-y-1">
-          {SYSTEM_ACTIONS.filter(item => !(isDesktop && item.id === 'logout')).map((item) => {
-            const Icon = item.icon;
-            const isLogout = item.id === 'logout';
+        {/* Main Navigation - Single scrollable container */}
+        <nav className="flex-1 overflow-y-auto px-2 pb-2 pt-3">
+          {!collapsed && (
+            <div className="px-3 pb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zyr0-text-faint">
+              Workspace
+            </div>
+          )}
+          <div className="space-y-0.5">{visiblePrimaryItems.map(renderItem)}</div>
 
-            if (item.href) {
-              return (
-                <Button
-                  key={item.id}
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    'w-full',
-                    collapsed ? 'justify-center px-2' : 'justify-start'
-                  )}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <a href={item.href}>
-                    <Icon className={cn('h-4 w-4', !collapsed && 'mr-2')} />
+          <ProjectsQuicklist
+            projects={recentProjects.map(p => ({ id: p.id, name: p.name }))}
+            loading={loadingRecentProjects}
+            collapsed={collapsed}
+            onSelect={handleProjectSelect}
+            onViewAll={() => navigateToView('projects', 'projects')}
+          />
+
+          {/* Secondary group */}
+          <div className="mt-2 border-t border-zyr0-hairline pt-2">
+            {collapsed ? (
+              <div className="mx-auto mb-1.5 h-px w-6 bg-zyr0-hairline" />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMoreOpen(open => !open)}
+                aria-expanded={moreOpen}
+                className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-zyr0-text-faint transition-colors hover:text-zyr0-text-dim"
+              >
+                More
+                <ChevronDown className={cn('h-3 w-3 transition-transform', moreOpen && 'rotate-180')} />
+              </button>
+            )}
+            {(collapsed || moreOpen) && (
+              <div className="space-y-0.5">{visibleSecondaryItems.map(renderItem)}</div>
+            )}
+          </div>
+        </nav>
+
+        {/* System Actions (Server Mode only) */}
+        {isServerMode && (
+          <div className="shrink-0 border-t border-zyr0-hairline p-2">
+            {SYSTEM_ACTIONS.filter(item => !(isDesktop && item.id === 'logout')).map((item) => {
+              const Icon = item.icon;
+              const isLogout = item.id === 'logout';
+
+              if (item.href) {
+                return (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      'flex h-9 items-center rounded-xl text-[13px] text-zyr0-text-dim transition-colors hover:bg-white/[0.045] hover:text-zyr0-text',
+                      collapsed ? 'justify-center px-0' : 'gap-3 px-3'
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                     {!collapsed && item.label}
                   </a>
-                </Button>
+                );
+              }
+
+              // Projects the server is missing or behind on. Shown here because Server Sync is
+              // where the user resolves them, and nothing else made drift visible.
+              const pendingBadge = item.id === 'sync' && pendingCount > 0;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleItemAction(item)}
+                  title={collapsed ? (pendingBadge ? `${item.label} (${pendingCount} not synced)` : item.label) : undefined}
+                  aria-label={pendingBadge ? `${item.label} (${pendingCount} not synced)` : undefined}
+                  className={cn(
+                    'relative flex h-9 w-full items-center rounded-xl text-[13px] transition-colors',
+                    collapsed ? 'justify-center px-0' : 'gap-3 px-3',
+                    isLogout
+                      ? 'text-red-400/80 hover:bg-red-500/10 hover:text-red-300'
+                      : 'text-zyr0-text-dim hover:bg-white/[0.045] hover:text-zyr0-text'
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                  {!collapsed && item.label}
+                  {pendingBadge && (
+                    <span
+                      className={cn(
+                        'flex items-center justify-center rounded-full bg-zyr0-blue/20 text-[10px] font-medium text-zyr0-blue',
+                        collapsed
+                          ? 'absolute right-1 top-1 h-4 min-w-4 px-1'
+                          : 'ml-auto h-4 min-w-4 px-1'
+                      )}
+                    >
+                      {pendingCount}
+                    </span>
+                  )}
+                </button>
               );
-            }
+            })}
+          </div>
+        )}
 
-            // Projects the server is missing or behind on. Shown here because Server Sync is
-            // where the user resolves them, and nothing else made drift visible.
-            const pendingBadge = item.id === 'sync' && pendingCount > 0;
-
-            return (
-              <Button
-                key={item.id}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'w-full relative',
-                  collapsed ? 'justify-center px-2' : 'justify-start',
-                  isLogout && 'text-destructive hover:text-destructive hover:bg-destructive/10'
-                )}
-                onClick={() => handleItemAction(item)}
-                title={collapsed ? (pendingBadge ? `${item.label} (${pendingCount} not synced)` : item.label) : undefined}
-              >
-                <Icon className={cn('h-4 w-4', !collapsed && 'mr-2')} />
-                {!collapsed && item.label}
-                {pendingBadge && (
-                  <span
-                    className={cn(
-                      'flex items-center justify-center rounded-full bg-primary/15 text-primary text-[10px] font-medium',
-                      collapsed
-                        ? 'absolute top-1 right-1 h-4 min-w-4 px-1'
-                        : 'ml-auto h-4 min-w-4 px-1'
-                    )}
-                    aria-label={`${pendingCount} project(s) not synced to the server`}
-                  >
-                    {pendingCount}
-                  </span>
-                )}
-              </Button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Pin/Unpin Toggle (desktop only) */}
-      <div className="hidden md:block border-t p-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn(
-            'w-full',
-            collapsed ? 'justify-center px-2' : 'justify-start'
-          )}
-          onClick={togglePinned}
-          title={collapsed ? (pinned ? "Unpin sidebar" : "Pin sidebar") : undefined}
-        >
-          {pinned ? (
-            <>
-              <ChevronLeft className={cn('h-4 w-4', !collapsed && 'mr-2')} />
-              {!collapsed && 'Unpin'}
-            </>
-          ) : (
-            <>
-              <ChevronRight className={cn('h-4 w-4', !collapsed && 'mr-2')} />
-              {!collapsed && 'Pin'}
-            </>
-          )}
-        </Button>
+        <UserCard
+          collapsed={collapsed}
+          name={userName}
+          creditsUsed={PLACEHOLDER_CREDITS_USED}
+          creditsTotal={PLACEHOLDER_CREDITS_TOTAL}
+          onSettings={() => onOpenSettings?.()}
+          onLogout={
+            isServerMode
+              ? () => { void handleItemAction({ id: 'logout', label: 'Logout', icon: LogOut, action: 'logout' }); }
+              : undefined
+          }
+        />
       </div>
-    </div>
     </>
   );
 }
@@ -697,7 +596,7 @@ function SidebarContent({
 // Wrapper component with Suspense boundary for Next.js 15
 export function Sidebar(props: SidebarProps) {
   return (
-    <Suspense fallback={<div className="w-full h-full bg-card" />}>
+    <Suspense fallback={<div className="w-full h-full bg-zyr0-obsidian" />}>
       <SidebarContent {...props} />
     </Suspense>
   );

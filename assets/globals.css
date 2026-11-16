@@ -40,6 +40,23 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* ZYR0 Studio surface palette. Scoped to .zyr0-surface / .zyr0-hero so the
+     app-wide orange --primary used by the workspace, editor and settings is untouched. */
+  --color-zyr0-obsidian: var(--zyr0-obsidian);
+  --color-zyr0-panel: var(--zyr0-panel);
+  --color-zyr0-elevated: var(--zyr0-elevated);
+  --color-zyr0-blue: var(--zyr0-blue);
+  --color-zyr0-gold: var(--zyr0-gold);
+  --color-zyr0-violet: var(--zyr0-violet);
+  --color-zyr0-coral: var(--zyr0-coral);
+  --color-zyr0-hairline: var(--zyr0-hairline);
+  --color-zyr0-hairline-strong: var(--zyr0-hairline-strong);
+  --color-zyr0-text: var(--zyr0-text);
+  --color-zyr0-text-dim: var(--zyr0-text-dim);
+  --color-zyr0-text-faint: var(--zyr0-text-faint);
+  --color-zyr0-glass: var(--zyr0-glass);
+  --color-zyr0-glass-hover: var(--zyr0-glass-hover);
 }
 
 :root {
@@ -299,3 +316,92 @@
   box-shadow: 0 0 0 4px oklch(0.70 0.22 40);
   animation: pulse-opacity 2s ease-in-out infinite;
 }
+
+/* ==========================================================================
+   ZYR0 Studio surface system
+   --------------------------------------------------------------------------
+   A self-contained dark palette. The variables live on the surface element
+   itself rather than on :root so the sidebar and dashboard stay readable in
+   light mode too: everything inside a .zyr0-surface is always dark-on-dark,
+   and nothing outside it changes. `color-scheme: dark` keeps native controls
+   (scrollbars, form widgets) in step.
+   ========================================================================== */
+
+.zyr0-surface,
+.zyr0-hero {
+  --zyr0-obsidian: #0e0e11;
+  --zyr0-panel: #141418;
+  --zyr0-elevated: #1b1b21;
+  --zyr0-blue: #2563eb;
+  --zyr0-gold: #f59e0b;
+  --zyr0-violet: #7c3aed;
+  --zyr0-coral: #fb7185;
+  --zyr0-hairline: rgb(255 255 255 / 0.08);
+  --zyr0-hairline-strong: rgb(255 255 255 / 0.14);
+  --zyr0-text: #f4f4f5;
+  --zyr0-text-dim: #8b8b95;
+  --zyr0-text-faint: #5c5c66;
+  --zyr0-glass: rgb(255 255 255 / 0.05);
+  --zyr0-glass-hover: rgb(255 255 255 / 0.09);
+  color-scheme: dark;
+}
+
+/* Ambient mesh blobs for the dashboard hero. Pure CSS: three blurred radial
+   gradients composited with `screen`, which reads as a light source behind the
+   prompt instead of a flat tint. No canvas, no images, no JS. */
+.zyr0-mesh {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.zyr0-mesh-blue {
+  background: radial-gradient(closest-side, rgb(37 99 235 / 0.55), transparent 72%);
+}
+
+.zyr0-mesh-gold {
+  background: radial-gradient(closest-side, rgb(245 158 11 / 0.34), transparent 72%);
+}
+
+.zyr0-mesh-violet {
+  background: radial-gradient(closest-side, rgb(124 58 237 / 0.38), transparent 72%);
+}
+
+.zyr0-mesh-coral {
+  background: radial-gradient(closest-side, rgb(251 113 133 / 0.26), transparent 72%);
+}
+
+/* Faint measurement grid — reads as texture, not as content. Masked so it
+   fades out before it reaches the gallery panel. */
+.zyr0-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 78%);
+}
+
+/* Very slow drift so the hero does not look like a static image. Opt-out for
+   users who ask for reduced motion. */
+@keyframes zyr0-mesh-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -3%, 0) scale(1.06); }
+}
+
+.zyr0-mesh-drift {
+  animation: zyr0-mesh-drift 22s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zyr0-mesh-drift {
+    animation: none;
+  }
+}
+

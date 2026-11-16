@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/sidebar';
 import { AppHeader } from '@/components/ui/app-header';
 import { X } from 'lucide-react';
 import { SyncDialog } from '@/components/project-manager/sync-dialog';
+import { CommandPalette } from '@/components/search/command-palette';
 import { cn } from '@/lib/utils';
 import { setAutoSyncWorkspaceId, fetchSyncStatus, pullConnectionsIntoCache } from '@/lib/vfs/auto-sync';
 import { getSyncManager } from '@/lib/vfs/sync-manager';
@@ -141,6 +142,13 @@ export function PageLayout({
       <SyncDialog
         open={syncDialogOpen}
         onOpenChange={setSyncDialogOpen}
+      />
+
+      {/* ⌘K palette — mounted once, opened from the sidebar's Search item or the shortcut */}
+      <CommandPalette
+        onProjectSelect={onProjectSelect}
+        onNavigate={onNavigate}
+        workspaceId={workspaceId}
       />
     </div>
   );
