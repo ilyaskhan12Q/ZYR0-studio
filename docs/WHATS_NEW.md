@@ -1186,7 +1186,7 @@ The dashboard is now available in browser mode and is the default landing page f
 
 - **Dashboard for Browser Mode** - Dashboard now available in browser mode (previously server mode only)
 - **Dashboard as Landing Page** - Dashboard is the default landing page for both modes
-- **Quick Actions Bar** - Create projects, start guided tour, join Discord, and access docs
+- **Quick Actions Bar** - Create projects, start guided tour, and access docs
 - **What's New Component** - Shows latest version highlights with link to full changelog
 - **Recent Projects** - Quick access to recently updated projects from dashboard
 

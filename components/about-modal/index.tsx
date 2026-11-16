@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { Badge } from '@/components/ui/badge';
 import { Github, ExternalLink } from 'lucide-react';
-import { DiscordIcon } from '@/components/ui/discord-icon';
 
 interface AboutModalProps {
   open: boolean;

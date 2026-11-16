@@ -1727,7 +1727,7 @@ Major architectural restructure: backend features are now **project-scoped** and
 ## v1.21.0 - 2026-01-10
 - **Dashboard for Browser Mode**: Dashboard now available in browser mode (previously server mode only)
 - **Dashboard as Landing Page**: Dashboard is now the default landing page for both modes
-- **Quick Actions Bar**: Create projects, start guided tour, join Discord, and access docs from dashboard
+- **Quick Actions Bar**: Create projects, start guided tour, and access docs from dashboard
 - **What's New Component**: Shows latest version highlights with link to full changelog
 - **Recent Projects**: Quick access to recently updated projects from dashboard
 

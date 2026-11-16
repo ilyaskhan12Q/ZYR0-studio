@@ -15,7 +15,6 @@ import {
   Clock,
   ChevronRight,
 } from 'lucide-react';
-import { DiscordIcon } from '@/components/ui/discord-icon';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import Link from 'next/link';
@@ -273,12 +272,6 @@ function QuickActionsBar({
         <Button variant="outline" size="sm" onClick={onStartTour} className="gap-1.5">
           <Sparkles className="w-4 h-4" />
           Guided Tour
-        </Button>
-        <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <a href="https://discord.gg/mAJ8Ss4u" target="_blank" rel="noopener noreferrer">
-            <DiscordIcon className="w-4 h-4" />
-            Discord
-          </a>
         </Button>
         <Button variant="outline" size="sm" asChild className="gap-1.5">
           <Link href={docsHref} onClick={handleDocsClick}>

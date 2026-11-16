@@ -25,7 +25,6 @@ import {
   LayoutDashboard,
   UserCircle,
 } from 'lucide-react';
-import { DiscordIcon } from '@/components/ui/discord-icon';
 import { DOCS_ITEMS } from '@/lib/constants/docs';
 import { cn } from '@/lib/utils';
 import { useProjectSyncState } from '@/lib/hooks/use-project-sync-state';
