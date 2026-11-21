@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
             headers: {
               'Authorization': `Bearer ${apiKey}`,
               'HTTP-Referer': request.headers.get('referer') || 'http://localhost:3000',
-              'X-Title': 'OSW-Studio'
+              'X-Title': 'ZYR0-Studio'
             }
           });
           if (orResponse.ok) {

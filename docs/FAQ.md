@@ -115,7 +115,7 @@ The application itself is **free and open source** (MIT license). However:
 
 **Yes, in Server Mode.** Workspaces support multiple users. An agency can build a site and invite the client to make updates via the AI. See **[Multitenancy](?doc=multitenancy)**.
 
-In Browser Mode, you can share projects by exporting as .osws files or ZIP archives.
+In Browser Mode, you can share projects by exporting as .zyrs files or ZIP archives.
 
 ### How much does AI generation cost?
 
@@ -336,7 +336,7 @@ Yes! **Scheduled Functions** let you run edge functions on a cron schedule. Use 
 **If you saved**:
 - Projects persist in IndexedDB
 - Check other browser profiles
-- Import .osws backup if you have one
+- Import .zyrs backup if you have one
 
 **If you didn't save**:
 - In-memory checkpoints cleared on refresh

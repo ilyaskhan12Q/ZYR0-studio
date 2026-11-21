@@ -96,7 +96,7 @@ npm run dev
 ```
 
 SQLite databases are created automatically:
-- `data/osws.sqlite` - Core database (projects, deployments, templates, skills)
+- `data/zyro.sqlite` - Core database (projects, deployments, templates, skills)
 - `deployments/{id}/runtime.sqlite` - Per-deployment runtime (edge functions, secrets, user tables)
 - `deployments/{id}/analytics.sqlite` - Per-deployment analytics (pageviews, sessions)
 
@@ -289,7 +289,7 @@ For multitenancy details, see **[Multitenancy](?doc=multitenancy)**.
 1. Check write permissions on `data/` directory
 2. Ensure disk space is available
 3. Check file system supports SQLite (most do)
-4. Try deleting `data/osws.sqlite` and restarting (loses data)
+4. Try deleting `data/zyro.sqlite` and restarting (loses data)
 
 ### Migration Failures
 

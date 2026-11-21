@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     url.searchParams.set('state', state);
     url.searchParams.set('id_token_add_organizations', 'true');
     url.searchParams.set('codex_cli_simplified_flow', 'true');
-    url.searchParams.set('originator', 'osw-studio');
+    url.searchParams.set('originator', 'zyro-studio');
 
     const response = NextResponse.json({ authorizationUrl: url.toString(), manualCallback });
     response.cookies.set(CODEX_LOGIN_COOKIE_NAME, state, codexCookieOptions(CODEX_LOGIN_COOKIE_MAX_AGE));

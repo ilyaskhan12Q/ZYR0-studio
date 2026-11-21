@@ -282,7 +282,7 @@ QuotaExceededError: The quota has been exceeded
 
 2. **Clear browser data**:
    - Keep ZYR0 Studio origin
-   - Or export all (.osws) then reimport
+   - Or export all (.zyrs) then reimport
 
 3. **Check browser quota**:
 ```javascript
@@ -299,11 +299,11 @@ navigator.storage.estimate().then(estimate => {
 - After clearing browser data
 
 **Prevention**:
-- Regular .osws exports (backups)
+- Regular .zyrs exports (backups)
 - Don't clear IndexedDB for ZYR0 Studio origin
 
 **Recovery**:
-- Import last .osws backup
+- Import last .zyrs backup
 - Or start fresh
 
 ### Slow Performance with Large Projects
@@ -513,7 +513,7 @@ Error: Parse error on line 5
 - Site broken when deployed
 
 **Solution**:
-- Ensure using "Export → ZIP" (not .osws)
+- Ensure using "Export → ZIP" (not .zyrs)
 - ZIP export auto-compiles Handlebars
 - If issue persists, report bug
 

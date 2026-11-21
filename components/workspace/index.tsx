@@ -726,10 +726,10 @@ export function Workspace({ project, onBack, workspaceId }: WorkspaceProps) {
         }
         // Initialize mode from localStorage (migrating the legacy chat-mode key)
         if (typeof window !== 'undefined') {
-          const storedMode = localStorage.getItem('zyr0-studio-mode') || localStorage.getItem('osw-studio-mode');
+          const storedMode = localStorage.getItem('zyr0-studio-mode');
           if (storedMode === 'chat' || storedMode === 'interview' || storedMode === 'code') {
             useWorkspaceStore.setState({ mode: storedMode });
-          } else if (localStorage.getItem('zyr0-studio-chat-mode') === 'true' || localStorage.getItem('osw-studio-chat-mode') === 'true') {
+          } else if (localStorage.getItem('zyr0-studio-chat-mode') === 'true') {
             useWorkspaceStore.setState({ mode: 'chat' });
             localStorage.setItem('zyr0-studio-mode', 'chat');
           }

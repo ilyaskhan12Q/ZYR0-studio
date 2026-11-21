@@ -5,8 +5,8 @@
  * routing table and reloads Caddy. Called after publish/unpublish.
  *
  * Generates three types of server blocks:
- * 1. Main instance domain (inst-1.oswstudio.com)
- * 2. Subdomain routes (sunny-oak-river.inst-1.oswstudio.com) — wildcard cert
+ * 1. Main instance domain (inst-1.zyrostudio.com)
+ * 2. Subdomain routes (sunny-oak-river.inst-1.zyrostudio.com) — wildcard cert
  * 3. Custom domain routes (sweetcandies.com) — on-demand TLS
  *
  * Does nothing if STATIC_PROXY is not set.

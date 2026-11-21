@@ -102,14 +102,14 @@ Creating a project now starts with the template rather than the runtime. Every t
 
 ## v1.90.0 - Sync and File Handling (2026-07-31)
 
-Most of this release went into Server Mode sync. An imported project no longer sits there marked "Local newer" after it has already been pushed, and edits that only touch the project itself (a rename, a runtime change, a new thumbnail) now actually reach the server instead of quietly staying local. Project cards carry a badge when they're out of step, so you don't have to open Server Sync to find out. Projects can also hold any kind of file now, rather than the short list of types the app used to recognise. Three things that were broken on every Server Mode install are fixed too: built-in analytics, edge functions and scheduled functions were all looking in the wrong place. A security hole in the analytics endpoints is closed, and `.osws` backup and restore works again, which is worth reading the note on below if you keep backups.
+Most of this release went into Server Mode sync. An imported project no longer sits there marked "Local newer" after it has already been pushed, and edits that only touch the project itself (a rename, a runtime change, a new thumbnail) now actually reach the server instead of quietly staying local. Project cards carry a badge when they're out of step, so you don't have to open Server Sync to find out. Projects can also hold any kind of file now, rather than the short list of types the app used to recognise. Three things that were broken on every Server Mode install are fixed too: built-in analytics, edge functions and scheduled functions were all looking in the wrong place. A security hole in the analytics endpoints is closed, and `.zyrs` backup and restore works again, which is worth reading the note on below if you keep backups.
 
 ### Files
 - **Any file can live in a project**: Drop in audio, a web font, a PDF, a 3D model for three.js, a WASM module; the preview and published site serve them properly. Anything outside the recognised list used to be refused, and whatever got in by another route was treated as text and corrupted. Whether a file is text or bytes now follows what it contains rather than what it's called; anything already corrupted that way needs adding again
 
 ### Backup & restore
 - **Restore works again**: The backup tool was reading and writing the wrong local database, so outside browser mode a restore reported success and did nothing, and export failed. Your data was never overwritten by this, but a backup file taken before this release is missing custom templates, skills, backend functions, secrets, and every image and font, so it's worth taking a fresh one
-- **Backups cover everything**: They follow the database's own contents now, rather than a fixed list that had fallen behind by seven data types. That includes your project secrets, which are stored unencrypted, so an `.osws` file can contain API keys. Treat one as sensitive and keep it to yourself
+- **Backups cover everything**: They follow the database's own contents now, rather than a fixed list that had fallen behind by seven data types. That includes your project secrets, which are stored unencrypted, so an `.zyrs` file can contain API keys. Treat one as sensitive and keep it to yourself
 
 ### Templates
 - **Templates keep their images and fonts**: A template's binary files were written out empty, so they were gone when the template was imported, shared or used to create a project. Existing `.oswt` files and saved templates are missing that content and need re-creating from a project
@@ -1366,7 +1366,7 @@ Server Mode now uses SQLite instead of PostgreSQL. This means:
 Each published site now has its own SQLite database containing its files, settings, and analytics. This keeps sites isolated from each other.
 
 **Storage structure:**
-- `data/osws.sqlite` - Your projects, templates, and skills
+- `data/zyro.sqlite` - Your projects, templates, and skills
 - `sites/{siteId}/site.sqlite` - Each site's files and analytics
 
 ### Breaking Change
@@ -1441,7 +1441,7 @@ The Debug panel now includes a terminal for testing VFS shell commands directly.
 ## v1.15.0
 
 - **Skills System** - Create, import, and export AI skills with markdown-based editor
-- **Built-in skills** - OSW Workflow, Handlebars Advanced, Accessibility (WCAG 2.1 AA)
+- **Built-in skills** - ZYR0 Studio Workflow, Handlebars Advanced, Accessibility (WCAG 2.1 AA)
 - **Skills tab** - New tab alongside Projects and Templates
 
 ---

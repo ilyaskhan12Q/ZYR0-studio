@@ -1,6 +1,6 @@
 import type { ProviderConfig } from './types';
 
-const STORAGE_KEY = 'osw-studio-custom-providers';
+const STORAGE_KEY = 'zyro-studio-custom-providers';
 
 function safeParse<T>(raw: string | null): T | null {
   if (!raw) return null;

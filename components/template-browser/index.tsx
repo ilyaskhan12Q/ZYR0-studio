@@ -188,7 +188,7 @@ export function templateSupportNote(
   if (template.intent === 'project-kit') {
     return {
       kind: 'project-kit',
-      summary: 'OSWS cannot build or run this',
+      summary: 'ZYR0 Studio cannot build or run this',
       detail:
         'You edit the project here and build it with its own tools elsewhere. The preview is an overview of the project, not the running service.',
     };

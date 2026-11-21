@@ -1,5 +1,5 @@
 export const TELEMETRY_ENDPOINT =
-  process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT || 'https://stats.oswstudio.com/collect';
+  process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT || 'https://stats.zyrostudio.com/collect';
 
 export const TELEMETRY_TOKEN =
   process.env.NEXT_PUBLIC_ANALYTICS_TOKEN || 'gcBLEeGjdx8gbUMoAAlksvoKSREZlJ4l+GwKieTW2Og=';

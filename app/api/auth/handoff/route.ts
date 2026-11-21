@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   // Ensure workspace is fully initialized (same as login flow)
   await ensureDefaultWorkspace(user.id);
 
-  // Create a normal OSWS session for this user
+  // Create a normal session for this user
   const sessionToken = await createSession(user.id, user.email, !!user.is_admin);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.url;

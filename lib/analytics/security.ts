@@ -163,7 +163,7 @@ export function getAllowedOrigins(
     origins.push(`http://${customDomain}`);
   }
 
-  // Allow subdomain-routed deployments (e.g., my-site.oswstudio.com)
+  // Allow subdomain-routed deployments (e.g., my-site.zyrostudio.com)
   const appHost = appUrl.replace(/^https?:\/\//, '').split(':')[0];
   if (appHost && !appHost.includes('localhost')) {
     origins.push(`https://*.${appHost}`);

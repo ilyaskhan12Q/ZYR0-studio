@@ -26,7 +26,7 @@ export function buildSpaceReadme(opts: { title: string; shortDescription: string
     'pinned: false',
     ...(desc ? [`short_description: ${yamlString(desc)}`] : []),
     'tags:',
-    '  - osw-studio',
+    '  - zyro-studio',
     '---',
   ].join('\n');
 

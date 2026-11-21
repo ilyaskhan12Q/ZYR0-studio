@@ -384,7 +384,7 @@ async function checkForUpdatesElectron(interactive: boolean): Promise<void> {
 async function checkForUpdatesMac(interactive: boolean): Promise<void> {
   try {
     const body = await new Promise<string>((resolve, reject) => {
-      const req = https.get(RELEASES_API_URL, { headers: { 'User-Agent': 'osw-studio-desktop' } }, (res) => {
+      const req = https.get(RELEASES_API_URL, { headers: { 'User-Agent': 'zyro-studio-desktop' } }, (res) => {
         let data = '';
         res.on('data', (c) => { data += c; });
         res.on('end', () => resolve(data));
@@ -528,7 +528,7 @@ app.whenReady().then(async () => {
   buildMenu();
   try {
     if (isDev) {
-      // Dev mode: run `npm run dev` in osw-studio-git and point at it
+      // Dev mode: run `npm run dev` in zyro-studio and point at it
       serverPort = 3000;
     } else {
       serverPort = await startNextServer();

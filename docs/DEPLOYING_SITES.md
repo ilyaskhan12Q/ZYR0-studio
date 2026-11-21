@@ -60,13 +60,13 @@ The ZIP contains compiled HTML/CSS/JS ready for deployment:
 - **React/Preact/Svelte/Vue**: Source files (`.tsx`, `.svelte`, `.vue`) are bundled into a single `bundle.js` that the export references — the bundle is runtime-independent and works on any static host
 - **Python/Lua**: These runtimes execute in the browser via WASM and cannot be deployed to external hosts — use ZIP export for offline use or self-host in Server Mode instead
 
-### .osws Export (For Backup)
+### .zyrs Export (For Backup)
 
 For backing up projects with full history (checkpoints, conversations):
 
 1. Click the **⋮** menu icon on the project card
 2. Select **Export** (JSON format)
-3. Save the `.osws` file
+3. Save the `.zyrs` file
 
 This format is for importing back into ZYR0 Studio, not for deployment.
 

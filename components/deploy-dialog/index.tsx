@@ -25,7 +25,7 @@ interface DeployDialogProps {
   onOpenChange: (o: boolean) => void;
 }
 
-type Target = 'hf' | 'osws' | 'zip';
+type Target = 'hf' | 'zyro' | 'zip';
 
 const DEPLOY_DOC = '/?doc=deploying-sites';
 
@@ -37,7 +37,7 @@ export function DeployDialog({ open, projectId, onOpenChange }: DeployDialogProp
   // ZIP export is always available (works in every mode and for every runtime), so it's the
   // universal fallback default; prefer a managed target where one is usable.
   const [target, setTarget] = useState<Target>(
-    isServerMode ? 'osws' : hfConnected ? 'hf' : 'zip',
+    isServerMode ? 'zyro' : hfConnected ? 'hf' : 'zip',
   );
   const [zipExporting, setZipExporting] = useState(false);
 
@@ -129,8 +129,8 @@ export function DeployDialog({ open, projectId, onOpenChange }: DeployDialogProp
             title="ZYR0 Studio"
             subtitle="Publish to this ZYR0 Studio instance and manage it in Deployments."
             enabled={isServerMode}
-            selected={target === 'osws'}
-            onSelect={() => setTarget('osws')}
+            selected={target === 'zyro'}
+            onSelect={() => setTarget('zyro')}
             onLearnMore={learnMore}
             disabledContent={
               <span className="text-xs text-muted-foreground">Available in Server Mode.</span>
@@ -153,7 +153,7 @@ export function DeployDialog({ open, projectId, onOpenChange }: DeployDialogProp
         {/* Selected target body */}
         {target === 'hf' && hfConnected ? (
           <HFSpaceTarget projectId={projectId} onClose={close} />
-        ) : target === 'osws' && isServerMode ? (
+        ) : target === 'zyro' && isServerMode ? (
           <>
             <div className="py-4 text-sm text-muted-foreground">
               Deployments publish this project to this instance, each with its own settings, custom

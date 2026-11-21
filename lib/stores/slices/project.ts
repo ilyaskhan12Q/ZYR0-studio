@@ -109,7 +109,7 @@ export const createProjectSlice: StateCreator<CombinedState, [], [], ProjectSlic
       track('mode_switch', { from: prevMode, to: mode });
     }
     if (typeof window !== 'undefined') {
-      localStorage.setItem('osw-studio-mode', mode);
+      localStorage.setItem('zyr0-studio-mode', mode);
     }
     if (!get().generating) {
       get().resetOrchestrator();

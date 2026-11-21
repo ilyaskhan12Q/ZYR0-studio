@@ -4,7 +4,7 @@
 # Shared by CI (.github/workflows/desktop-release.yml) and local builds
 # (deploy-osw-desktop.sh) so the two can never drift.
 #
-# Expects to run from the repo root (osw-studio-git) AFTER:
+# Expects to run from the repo root (zyro-studio) AFTER:
 #   NEXT_PUBLIC_SERVER_MODE=true NEXT_PUBLIC_DESKTOP=true npm run build
 
 set -e

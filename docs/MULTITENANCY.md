@@ -6,7 +6,7 @@ ZYR0 Studio server mode supports workspaces and multiple users on a single insta
 
 ### Workspaces
 
-A workspace is a self-contained environment with its own projects, deployments, templates, skills, and quotas. Each workspace maps to its own SQLite database at `data/workspaces/{id}/osws.sqlite`. Data in one workspace is completely isolated from other workspaces.
+A workspace is a self-contained environment with its own projects, deployments, templates, skills, and quotas. Each workspace maps to its own SQLite database at `data/workspaces/{id}/zyro.sqlite`. Data in one workspace is completely isolated from other workspaces.
 
 Images, fonts and other binary files are stored beside that database in `data/workspaces/{id}/blobs/`, not inside it, so a published deployment can share them rather than keeping a second copy. **Back up the whole `data/workspaces/{id}/` directory, not just the `.sqlite` file** — a database restored without its `blobs/` directory loads, but every image in every project comes back empty.
 
@@ -40,7 +40,7 @@ data/
   system.sqlite                    # Users, workspaces, access grants
   workspaces/
     {workspaceId}/
-      osws.sqlite                  # Projects, files, templates, skills
+      zyro.sqlite                  # Projects, files, templates, skills
       projects/
         {projectId}/
           database.sqlite          # User-defined project databases
@@ -56,7 +56,7 @@ public/
 
 **system.sqlite** is the only shared database. It stores user accounts, workspace definitions, access grants (who can access which workspace), and deployment routing.
 
-**Per-workspace osws.sqlite** contains everything within a workspace. The schema is identical to single-user mode. Isolation is physical (separate files), not logical.
+**Per-workspace zyro.sqlite** contains everything within a workspace. The schema is identical to single-user mode. Isolation is physical (separate files), not logical.
 
 ## URL Structure
 
@@ -189,7 +189,7 @@ Configurable per-workspace via the admin UI or API. An agency might give basic c
 Existing single-user instances automatically migrate when multitenancy is enabled:
 
 1. On first login, a default workspace is created with unlimited quotas
-2. Existing projects, deployments, templates, and skills are copied from `data/osws.sqlite` to the workspace
+2. Existing projects, deployments, templates, and skills are copied from `data/zyro.sqlite` to the workspace
 3. Project databases from `data/projects/` are copied to the workspace
 
 If migration doesn't complete (e.g., already logged in when workspace was created), a "Workspace Setup Required" dialog offers to re-login and retry. Manual repair is available via:

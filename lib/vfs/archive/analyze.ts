@@ -391,7 +391,7 @@ function detectWrongFormat(
       format: 'osws-backup',
       path: '/backup.json',
       message:
-        'This is a full ZYR0 Studio backup (.osws), not a project archive. Restore it from the ' +
+        'This is a full ZYR0 Studio backup, not a project archive. Restore it from the ' +
         'backup importer instead.',
     };
   }

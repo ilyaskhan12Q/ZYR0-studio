@@ -15,7 +15,7 @@ Security → SSH Keys → Add SSH Key
 If you don't have one locally, generate it first:
 
 ```bash
-ssh-keygen -t ed25519 -C "osws-server"
+ssh-keygen -t ed25519 -C "zyro-server"
 cat ~/.ssh/id_ed25519.pub
 ```
 
@@ -60,12 +60,12 @@ apt update && apt upgrade -y
 ### Create Non-Root User
 
 ```bash
-adduser osws --disabled-password --gecos ""
-mkdir -p /home/osws/.ssh
-cp ~/.ssh/authorized_keys /home/osws/.ssh/
-chown -R osws:osws /home/osws/.ssh
-chmod 700 /home/osws/.ssh
-chmod 600 /home/osws/.ssh/authorized_keys
+adduser zyro --disabled-password --gecos ""
+mkdir -p /home/zyro/.ssh
+cp ~/.ssh/authorized_keys /home/zyro/.ssh/
+chown -R zyro:zyro /home/zyro/.ssh
+chmod 700 /home/zyro/.ssh
+chmod 600 /home/zyro/.ssh/authorized_keys
 ```
 
 ### Harden SSH
@@ -98,7 +98,7 @@ echo '/swapfile none swap sw 0 0' >> /etc/fstab
 ```bash
 apt install nginx -y
 
-cat > /etc/nginx/sites-available/osws << 'EOF'
+cat > /etc/nginx/sites-available/zyro << 'EOF'
 server {
     listen 80 default_server;
     server_name _;
@@ -116,7 +116,7 @@ server {
 }
 EOF
 
-ln -s /etc/nginx/sites-available/osws /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/zyro /etc/nginx/sites-enabled/
 rm /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 ```
@@ -125,10 +125,10 @@ nginx -t && systemctl reload nginx
 
 ## App Deployment
 
-### Switch to osws User
+### Switch to zyro User
 
 ```bash
-su - osws
+su - zyro
 ```
 
 ### Install Node.js
@@ -143,7 +143,7 @@ nvm install 20
 
 ```bash
 git clone https://github.com/ilyaskhan/zyr0-studio.git
-cd osw-studio
+cd zyro-studio
 ```
 
 ### Create Environment File
@@ -172,7 +172,7 @@ EOF
 npm install
 npm run build
 npm install -g pm2
-pm2 start npm --name "osws" -- start
+pm2 start npm --name "zyro" -- start
 pm2 save
 ```
 
@@ -181,7 +181,7 @@ pm2 save
 Exit back to root (`exit`) and run:
 
 ```bash
-env PATH=$PATH:/home/osws/.nvm/versions/node/v20.18.1/bin pm2 startup systemd -u osws --hp /home/osws
+env PATH=$PATH:/home/zyro/.nvm/versions/node/v20.18.1/bin pm2 startup systemd -u zyro --hp /home/zyro
 ```
 
 > **Note:** Adjust the Node version path if you installed a different version.
@@ -198,12 +198,12 @@ env PATH=$PATH:/home/osws/.nvm/versions/node/v20.18.1/bin pm2 startup systemd -u
 ## Updating ZYR0 Studio
 
 ```bash
-su - osws
-cd ~/osw-studio
+su - zyro
+cd ~/zyro-studio
 git pull
 npm install
 npm run build
-pm2 restart osws
+pm2 restart zyro
 ```
 
 > **Important:** Any changes to `NEXT_PUBLIC_*` environment variables require a rebuild (`npm run build`) — these are baked in at compile time.
@@ -224,14 +224,14 @@ certbot --nginx -d your-domain.com
 Then update the environment and rebuild:
 
 ```bash
-su - osws
-cd ~/osw-studio
+su - zyro
+cd ~/zyro-studio
 
 # Edit .env to remove SECURE_COOKIES=false
 nano .env
 
 npm run build
-pm2 restart osws
+pm2 restart zyro
 ```
 
 ---
@@ -239,7 +239,7 @@ pm2 restart osws
 ## Security Checklist
 
 - ✅ Never expose port 3000 directly — always use nginx as reverse proxy
-- ✅ App runs as non-root user `osws`
+- ✅ App runs as non-root user `zyro`
 - ✅ SSH is key-only, no password authentication
 - ✅ Cloud firewall blocks all ports except 22, 80, 443
 - ✅ fail2ban protects against brute force attempts

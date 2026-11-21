@@ -27,7 +27,7 @@ Whether you need a static landing page, a component-driven React/Vue/Svelte appl
 - **Dual AI Modes** — Chat (exploration, planning, Q&A) + Code (full multi-file implementation)
 - **Multi-Provider AI Orchestration** — OpenRouter (200+ models), OpenAI (+ ChatGPT sign-in), Anthropic Claude, Google Gemini, Groq, HuggingFace, DeepSeek, MiniMax, Zhipu AI, SambaNova, Ollama, LM Studio, llama.cpp
 - **Full In-Browser IDE** — Monaco code editor, live hot-reload preview, file explorer, multi-tab support, and interactive terminal
-- **Deploy & Export Anywhere** — Export as clean ZIP archives, standalone `.oswt` templates, or full-history `.osws` backups
+- **Deploy & Export Anywhere** — Export as clean ZIP archives, standalone `.zyrt` templates, or full-history `.zyrs` backups
 - **Self-Hosted Server Mode** — Multi-user workspaces, serverless QuickJS Edge Functions, SQLite per-deployment databases, secrets management, SEO controls, and automated Caddy custom domain routing
 
 ---

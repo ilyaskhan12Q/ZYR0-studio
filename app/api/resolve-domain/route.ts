@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   // Try custom domain first
   let match = getDeploymentByDomain(domain);
 
-  // Try subdomain slug (e.g., my-site.oswstudio.com → slug "my-site")
+  // Try subdomain slug (e.g., my-site.zyrostudio.com → slug "my-site")
   if (!match) {
     const appHost = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/^https?:\/\//, '').split(':')[0];
     if (appHost && domain.endsWith(`.${appHost}`)) {

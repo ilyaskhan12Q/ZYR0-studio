@@ -9,9 +9,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { osws_user_id } = await request.json();
+  const body = await request.json();
+  const osws_user_id = body.user_id || body.zyro_user_id || body.osws_user_id;
   if (!osws_user_id) {
-    return NextResponse.json({ error: 'osws_user_id required' }, { status: 400 });
+    return NextResponse.json({ error: 'user_id required' }, { status: 400 });
   }
 
   // Verify user exists on this instance

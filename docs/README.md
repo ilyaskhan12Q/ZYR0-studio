@@ -119,7 +119,7 @@ Download your complete site and deploy to Vercel, Netlify, or any static host in
 
 ### External Links
 
-- **[Live Demo](https://huggingface.co/spaces/otst/osw-studio)** - Try ZYR0 Studio now
+- **[Live Demo](https://zyrostudio.com)** - Try ZYR0 Studio now
 - **[GitHub Repository](https://github.com/ilyaskhan/zyr0-studio)** - Source code
 - **[Report Issues](https://github.com/ilyaskhan/zyr0-studio/issues)** - Bug reports & feature requests
 

@@ -66,7 +66,7 @@ export function SettingsPanel({ hideHeader = false, hideFooter = false }: { hide
       setIsExporting(true);
       await BackupService.exportAllData();
       toast.success('Data exported successfully!');
-      track('project_export', { format: 'osws' });
+      track('project_export', { format: 'zyro' });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Export failed');
     } finally {
@@ -77,7 +77,7 @@ export function SettingsPanel({ hideHeader = false, hideFooter = false }: { hide
   const handleImportData = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.osws';
+    input.accept = '.zyrs,.osws,.zip';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
@@ -107,7 +107,7 @@ export function SettingsPanel({ hideHeader = false, hideFooter = false }: { hide
         });
 
         toast.success('Data imported successfully!');
-        track('project_import', { format: 'osws' });
+        track('project_import', { format: 'zyro' });
         setTimeout(() => window.location.reload(), 1000);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Import failed');
@@ -401,7 +401,7 @@ export function SettingsPanel({ hideHeader = false, hideFooter = false }: { hide
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium">Import Data</div>
                   <div className="text-xs text-muted-foreground">
-                    Restore from a .osws backup file
+                    Restore from a backup file (.zyrs / .osws)
                   </div>
                 </div>
                 <Button

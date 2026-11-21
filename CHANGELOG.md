@@ -110,7 +110,7 @@
 ## v1.92.1 - 2026-08-06
 
 ### Fixes
-- **A project's database schema stays with the project**: The schema was kept in browser storage rather than on the project, so everything that moves a project left it behind: downloading its files, an `.osws` backup, and Server Mode sync. A project made from the contact form or blog template arrived on another machine with its edge functions intact and no tables for them to read. The schema is now stored with the project and travels in all three, and it appears in the import preview as a setting you can accept or leave. A schema saved before this release moves across the first time it is read, which is when you download the project's files, or when the project opens in Server Mode.
+- **A project's database schema stays with the project**: The schema was kept in browser storage rather than on the project, so everything that moves a project left it behind: downloading its files, an `.zyrs` backup, and Server Mode sync. A project made from the contact form or blog template arrived on another machine with its edge functions intact and no tables for them to read. The schema is now stored with the project and travels in all three, and it appears in the import preview as a setting you can accept or leave. A schema saved before this release moves across the first time it is read, which is when you download the project's files, or when the project opens in Server Mode.
 
 ## v1.92.0 - 2026-08-06
 
@@ -167,7 +167,7 @@
 ## v1.90.1 - 2026-07-31
 
 ### Fixes
-- **Projects restored from an `.osws` backup sync on their own (Server Mode)**: A restore also brought back the timestamps recording when each project last synced, and those referred to whichever instance the backup was taken from. Measured against a different server they never settled, so a restored project stayed marked as out of step (as a conflict, which pushing cannot resolve, or as local only) until it was pushed by hand in Server Sync. A restored project now counts as not yet synced, so the automatic push picks it up. Restored skills carried the same timestamps and reported the same false drift.
+- **Projects restored from an `.zyrs` backup sync on their own (Server Mode)**: A restore also brought back the timestamps recording when each project last synced, and those referred to whichever instance the backup was taken from. Measured against a different server they never settled, so a restored project stayed marked as out of step (as a conflict, which pushing cannot resolve, or as local only) until it was pushed by hand in Server Sync. A restored project now counts as not yet synced, so the automatic push picks it up. Restored skills carried the same timestamps and reported the same false drift.
 
 ## v1.90.0 - 2026-07-31
 
@@ -194,8 +194,8 @@
 - **Analytics no longer loads behind other dialogs**: Opening deployment settings or server settings also started the analytics dashboard's requests in the background, before you had asked to see them.
 
 ### Backup & restore
-- **Restoring an `.osws` backup works again**: The backup tool opened a fixed database name and schema version rather than the one the app uses. Outside browser mode the local database is named after the workspace, so a restore wrote everything into an unrelated database, reported "Data imported successfully", and reloaded to unchanged data; exporting failed outright. In browser mode both failed with a version error. Backups now read and write the database the app is actually using. Your existing data was never overwritten by this, but a backup taken before this release will be missing the items below.
-- **Backups cover everything, not a third of it**: Only projects, files, the file tree, conversations and checkpoints were included. Custom templates, skills, edge functions, server functions, scheduled functions, secrets and debug events were silently absent from every backup. The backup now follows the database's own contents, so anything added later is included automatically. **Because secrets are now included, and project secrets are stored unencrypted, an `.osws` file can contain API keys and other credentials — treat a backup file as sensitive and don't share it.**
+- **Restoring an `.zyrs` backup works again**: The backup tool opened a fixed database name and schema version rather than the one the app uses. Outside browser mode the local database is named after the workspace, so a restore wrote everything into an unrelated database, reported "Data imported successfully", and reloaded to unchanged data; exporting failed outright. In browser mode both failed with a version error. Backups now read and write the database the app is actually using. Your existing data was never overwritten by this, but a backup taken before this release will be missing the items below.
+- **Backups cover everything, not a third of it**: Only projects, files, the file tree, conversations and checkpoints were included. Custom templates, skills, edge functions, server functions, scheduled functions, secrets and debug events were silently absent from every backup. The backup now follows the database's own contents, so anything added later is included automatically. **Because secrets are now included, and project secrets are stored unencrypted, an `.zyrs` file can contain API keys and other credentials — treat a backup file as sensitive and don't share it.**
 - **Images and fonts survive a backup**: Binary file content was written out as an empty object, so every image and font was lost on restore even when the restore itself worked.
 - **"Replace all current data" actually replaces it**: Outside browser mode the existing data was never cleared, and the step that was supposed to close the database first never did, so it stalled for several seconds before continuing regardless. Replace now clears the live data directly.
 
@@ -981,7 +981,7 @@
 
 ### Multitenancy & Workspaces (Server Mode)
 
-- **Workspace-based data isolation**: Each workspace gets its own `data/workspaces/{workspaceId}/osws.sqlite` database. Projects, files, deployments, templates, and skills are scoped per-workspace. A separate `data/system.sqlite` manages user accounts, workspaces, and access grants
+- **Workspace-based data isolation**: Each workspace gets its own `data/workspaces/{workspaceId}/zyro.sqlite` database. Projects, files, deployments, templates, and skills are scoped per-workspace. A separate `data/system.sqlite` manages user accounts, workspaces, and access grants
 - **Shared workspace access**: Multiple users can be granted access to the same workspace. An agency can create a workspace for a client, build the site, then invite the client to make their own updates via the AI
 - **Workspace-scoped URL routing**: All workspace pages live at `/w/{workspaceId}/projects`, `/w/{workspaceId}/deployments`, etc. API routes under `/api/w/{workspaceId}/sync/`, `/api/w/{workspaceId}/deployments/`, etc. Legacy `/admin/` paths redirect to the user's default workspace
 - **Workspace switcher**: Dropdown in the sidebar shows all workspaces the user has access to with role badges. Switching navigates to the same view in the new workspace. Admins can access workspace management directly from the switcher. Workspace name cached in localStorage for instant display on page load
@@ -991,7 +991,7 @@
 - **Admin management**: New `/admin/users` and `/admin/workspaces` pages. User creation includes workspace assignment (new workspace, existing workspace, or none). User expansion shows workspace memberships. Workspace management shows members, stats, quotas with create/edit/delete and access grant/revoke. Workspace deletion cleans up filesystem
 - **First-user-is-admin setup**: Fresh instances redirect to a registration page on first visit. The first user to register becomes admin with an unlimited workspace. No `ADMIN_PASSWORD` env var needed for new installs. Legacy admin password only works as a bootstrap mechanism when zero users exist
 - **Instance configuration**: `REGISTRATION_MODE` (open/closed) controls self-registration. `INSTANCE_API_KEY` enables machine-to-machine admin API auth. `INSTANCE_ID` identifies the instance
-- **Legacy data migration**: Upgrading from single-user mode automatically copies projects, deployments, templates, and skills from `data/osws.sqlite` to the default workspace on login. Workspace repair endpoint (`POST /api/admin/workspaces/{id}/repair`) detects and fixes orphaned data, missing deployment routes, and incomplete migrations
+- **Legacy data migration**: Upgrading from single-user mode automatically copies projects, deployments, templates, and skills from `data/zyro.sqlite` to the default workspace on login. Workspace repair endpoint (`POST /api/admin/workspaces/{id}/repair`) detects and fixes orphaned data, missing deployment routes, and incomplete migrations
 - **Workspace-scoped publish pipeline**: Static builder, backend feature extractor, and project swap analyzer all use the workspace adapter. All view components (deployments, database managers, server settings) fetch from workspace-scoped API URLs
 
 ### Security
@@ -1814,7 +1814,7 @@ Major architectural restructure: backend features are now **project-scoped** and
   - No external database setup required - just `npm install && npm start`
   - Simpler self-hosting with zero configuration
 - **Per-Site Database Architecture**: Each site now has its own SQLite database
-  - `data/osws.sqlite` - Core database (projects, templates, skills)
+  - `data/zyro.sqlite` - Core database (projects, templates, skills)
   - `sites/{siteId}/site.sqlite` - Per-site database (files, settings, analytics)
 - **Memory Leak Fix**: Reduced memory usage during long AI sessions
 - **Removed**: PostgreSQL support - `DATABASE_URL` environment variable no longer used
@@ -1883,7 +1883,7 @@ Major architectural restructure: backend features are now **project-scoped** and
 ## v1.15.0 - 2025-11-04
 - Added Agent Skills System (Anthropic-inspired, compatible with prompt-only skills) with integrated Skills tab (Projects | Templates | Skills)
 - Global enable/disable toggle for entire skills system with per-skill enable/disable controls
-- Built-in skills: OSW Workflow (comprehensive website building guide), Handlebars Advanced, Accessibility (WCAG 2.1 AA)
+- Built-in skills: ZYR0 Studio Workflow (comprehensive website building guide), Handlebars Advanced, Accessibility (WCAG 2.1 AA)
 - Create custom skills with markdown-based editor (YAML frontmatter + content, follows Anthropic SKILL.md convention)
 - Import/export skills as .md files or .zip archives
 - Skills automatically injected into AI system prompt when enabled (prompt-only approach)
@@ -1958,7 +1958,7 @@ Major architectural restructure: backend features are now **project-scoped** and
 - Mode state persists across sessions
 - Renamed from DeepStudio to ZYR0 Studio (ZYR0 Studio)
 - Updated all UI text, database names, storage keys, and API headers
-- Maintained full backward compatibility with DeepStudio .osws backup files
+- Maintained full backward compatibility with DeepStudio .zyrs backup files
 - Integrated new ZYR0 Studio logo with theme-aware SVG (automatic light/dark mode support)
 - Added outlined favicon design for visibility on all backgrounds
 - Established brand naming convention: "ZYR0 Studio" (full), "ZYR0 Studio" (short)
@@ -1980,7 +1980,7 @@ Major architectural restructure: backend features are now **project-scoped** and
 - Fixed 'echo' and 'touch' commands missing from structural commands for file explorer refresh
 - Fixed evaluation tool showing premature status
 - Fixed project name input validation
-- Fixed metadata URLs (oswstudio → osw-studio) in layout and CLAUDE.md
+- Fixed metadata URLs in layout
 - Added finish_reason handling for OpenRouter streaming
 - Request evaluation when tool calls stop instead of blind retries
 - Added runtime validation for tool definitions to prevent malformed tools

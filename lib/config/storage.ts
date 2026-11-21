@@ -119,7 +119,7 @@ function hydrateModelTemplate(t: ModelTemplate): ModelTemplate {
 }
 
 class ConfigManager {
-  private readonly STORAGE_KEY = 'osw-studio-settings';
+  private readonly STORAGE_KEY = 'zyro-studio-settings';
 
   getSettings(): AppSettings {
     if (typeof window === 'undefined') {
@@ -319,7 +319,7 @@ class ConfigManager {
     this.setSetting('costSettings', settings);
     // Broadcast the change to reactive components
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('osw-studio-cost-settings-changed'));
+      window.dispatchEvent(new CustomEvent('zyro-studio-cost-settings-changed'));
     }
   }
 
@@ -557,7 +557,7 @@ class ConfigManager {
 
     // Broadcast the change
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('osw-studio-reasoning-changed', {
+      window.dispatchEvent(new CustomEvent('zyro-studio-reasoning-changed', {
         detail: { modelId, enabled }
       }));
     }

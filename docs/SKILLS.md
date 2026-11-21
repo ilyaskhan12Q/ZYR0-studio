@@ -169,7 +169,7 @@ The AI will no longer have access to that skill's content.
 
 Enable multiple skills at once. The AI can access any enabled skill when relevant to the task at hand.
 
-**Recommendation**: Start with OSW Workflow + Accessibility as your baseline. The AI will intelligently choose which skills to reference based on what you're building.
+**Recommendation**: Start with ZYR0 Studio Workflow + Accessibility as your baseline. The AI will intelligently choose which skills to reference based on what you're building.
 
 ---
 

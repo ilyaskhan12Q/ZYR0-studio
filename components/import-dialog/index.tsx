@@ -121,7 +121,7 @@ type Phase = PlanPhase | 'analyzing' | 'unreadable' | 'applying' | 'done';
 const FORMAT_LABELS: Record<string, string> = {
   archive: 'Project archive',
   'loose-files': 'Loose files',
-  'osws-backup': 'Workspace backup',
+  'osws-backup': 'ZYR0 backup',
   'oswt-template': 'Template',
 };
 
