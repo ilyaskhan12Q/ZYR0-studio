@@ -1,0 +1,320 @@
+name: Desktop Release
+
+# Atomic desktop release: all three platforms build first, then a single
+# publish job verifies the complete artifact set and publishes the GitHub
+# release in one step. If any platform fails, no release is created and
+# auto-updaters keep pointing at the last complete release.
+#
+# The desktop shell source lives in desktop/ — this workflow contains no
+# app code of its own.
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: win
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#desktop-v}" >> $GITHUB_OUTPUT
+
+      - name: Verify tag matches package.json version
+        shell: bash
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$PKG_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::Tag desktop-v${{ steps.version.outputs.version }} does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js standalone (Server Mode)
+        env:
+          NEXT_PUBLIC_SERVER_MODE: 'true'
+          NEXT_PUBLIC_DESKTOP: 'true'
+        run: npm run build
+
+      - name: Assemble desktop app
+        shell: bash
+        run: ./desktop/assemble-app.sh
+
+      - name: Smoke test desktop server boot
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          # Boot with the exact env contract desktop/electron/main.ts sets.
+          # Asserts the app serves, the desktop workspace bootstrap succeeds,
+          # and all writable state lands in DATA_DIR — not in the (read-only
+          # when installed) app directory.
+          export PORT=34999
+          export HOSTNAME=localhost
+          export OSW_DESKTOP=true
+          export DATA_DIR="$RUNNER_TEMP/osw-data"
+          export DEPLOYMENTS_DIR="$RUNNER_TEMP/osw-deployments"
+          export SESSION_SECRET=smoke-test-secret
+          export SECRETS_ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
+          mkdir -p "$DATA_DIR" "$DEPLOYMENTS_DIR"
+          cd desktop/app
+          node server.js &
+          SERVER_PID=$!
+          cd "$GITHUB_WORKSPACE"
+          for i in $(seq 1 30); do
+            if curl -fs -o /dev/null "http://localhost:34999/"; then break; fi
+            sleep 1
+          done
+          STATUS=$(curl -sSL -o /dev/null -w '%{http_code}' "http://localhost:34999/" || echo "000")
+          INIT_STATUS=$(curl -s -o /tmp/init1.json -w '%{http_code}' -X POST "http://localhost:34999/api/auth/desktop-init" || echo "000")
+          WS1=$(jq -r '.workspaceId // empty' /tmp/init1.json 2>/dev/null || true)
+
+          # Recovery path: simulate a lost workspace (e.g. database wiped by an
+          # old-version update while the stale reference survives) and assert
+          # the bootstrap re-initializes instead of returning a dead workspace.
+          RECOVERY="skipped"
+          if [ -n "$WS1" ] && [ -f "$DATA_DIR/system.sqlite" ]; then
+            sqlite3 "$DATA_DIR/system.sqlite" "DELETE FROM workspaces WHERE id='$WS1';"
+            INIT2_STATUS=$(curl -s -o /tmp/init2.json -w '%{http_code}' -X POST "http://localhost:34999/api/auth/desktop-init" || echo "000")
+            WS2=$(jq -r '.workspaceId // empty' /tmp/init2.json 2>/dev/null || true)
+            if [ "$INIT2_STATUS" = "200" ] && [ -n "$WS2" ] && [ "$WS2" != "$WS1" ]; then
+              RECOVERY="ok"
+            else
+              RECOVERY="failed (status=$INIT2_STATUS ws1=$WS1 ws2=$WS2)"
+            fi
+          fi
+
+          kill $SERVER_PID || true
+          FAIL=""
+          [ "$STATUS" != "200" ] && FAIL="$FAIL / returned $STATUS;"
+          [ "$INIT_STATUS" != "200" ] && FAIL="$FAIL desktop-init returned $INIT_STATUS;"
+          [ -n "$WS1" ] || FAIL="$FAIL desktop-init returned no workspaceId;"
+          [ "$RECOVERY" = "ok" ] || FAIL="$FAIL workspace recovery $RECOVERY;"
+          [ -f "$DATA_DIR/system.sqlite" ] || FAIL="$FAIL system.sqlite not created in DATA_DIR;"
+          [ -d "desktop/app/data" ] && FAIL="$FAIL server wrote data/ into the app directory (read-only when installed);"
+          [ -d "desktop/app/public/deployments" ] && FAIL="$FAIL server wrote published output into the app directory (read-only when installed);"
+          if [ -n "$FAIL" ]; then
+            echo "::error::Desktop smoke test failed —$FAIL"
+            exit 1
+          fi
+          echo "Smoke test passed — server up, workspace bootstrap ok, recovery ok, data in DATA_DIR"
+
+      - name: Install desktop dependencies
+        shell: bash
+        working-directory: desktop
+        run: |
+          npm ci
+          npm pkg set version="${{ steps.version.outputs.version }}"
+
+      - name: Typecheck and compile Electron main process
+        working-directory: desktop
+        run: |
+          npx tsc --noEmit
+          npx tsup
+
+      - name: Bundle better-sqlite3 for Electron's ABI
+        working-directory: desktop
+        shell: bash
+        run: |
+          # The standalone's better-sqlite3 is built for the CI Node ABI, but the
+          # server runs in-process under Electron — swap in the official Electron
+          # prebuilt (electron-builder doesn't rebuild the bundled copy).
+          EV=$(node -p 'require("electron/package.json").version')
+          BS=../node_modules/better-sqlite3
+          DEST=app/node_modules/better-sqlite3/build/Release/better_sqlite3.node
+          fetch() { # <arch> <dest> — download the Electron prebuilt and place it
+            ( cd "$BS" && rm -f build/Release/better_sqlite3.node \
+              && npx --yes prebuild-install --runtime=electron --target="$EV" --arch="$1" )
+            cp "$BS/build/Release/better_sqlite3.node" "$2"
+          }
+          if [ "${{ matrix.platform }}" = "mac" ]; then
+            # The dmg is universal — fetch both slices and lipo them into one .node.
+            fetch arm64 /tmp/bs-arm64.node
+            fetch x64   /tmp/bs-x64.node
+            lipo -create /tmp/bs-arm64.node /tmp/bs-x64.node -output "$DEST"
+          else
+            fetch "$(node -p process.arch)" "$DEST"
+          fi
+          # Correct iff it does NOT load under system Node (Electron ABI != Node ABI).
+          if node -e 'process.dlopen({exports:{}}, process.argv[1])' "$DEST" 2>/dev/null; then
+            echo "::error::bundled better-sqlite3 loads under system Node — wrong ABI for Electron"
+            exit 1
+          fi
+          echo "bundled better-sqlite3 set to Electron $EV ABI"
+
+      - name: Build installer (no publish)
+        working-directory: desktop
+        run: npx electron-builder --${{ matrix.platform }} --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          if-no-files-found: error
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.exe
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+            desktop/dist/*.yml
+            desktop/dist/*.blockmap
+
+  # Boot the packaged AppImage on Fedora and assert workspace init succeeds.
+  # The build-job smoke test runs `node server.js` under the runner's system
+  # Node, so it never exercises native modules under Electron's ABI — this job
+  # runs the real binary's --self-test entry point to cover that path.
+  selftest-fedora:
+    name: Self-test (Fedora)
+    needs: build
+    runs-on: ubuntu-latest
+    # Pinned to the reported environment (Fedora 43). Bump or add distros later.
+    container: fedora:43
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-linux
+          path: dist
+
+      - name: Install Electron runtime libraries
+        # Electron needs an X/GTK userland even to reach app.whenReady() with no
+        # window. This list is the likeliest iteration point — a missing lib
+        # surfaces as the app failing to start under xvfb; add packages here.
+        run: |
+          dnf -y install \
+            nss nspr atk at-spi2-atk at-spi2-core cups-libs gtk3 \
+            libdrm mesa-libgbm libX11 libXcomposite libXdamage libXext \
+            libXfixes libXrandr libxcb libxkbcommon alsa-lib pango cairo \
+            libXScrnSaver xorg-x11-server-Xvfb findutils
+
+      - name: Boot AppImage headlessly and assert workspace init
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(ls dist/*.AppImage | head -1)
+          echo "Testing: $APPIMAGE"
+          chmod +x "$APPIMAGE"
+          # APPIMAGE_EXTRACT_AND_RUN: no FUSE needed inside the container.
+          # --no-sandbox: Chromium's sandbox needs privileges the container lacks.
+          # --self-test: headless boot + desktop-init probe, exits 0/1 with the
+          #   real cause printed on failure.
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a "$APPIMAGE" --self-test --no-sandbox
+
+  publish:
+    needs: [build, selftest-fedora]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#desktop-v}" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Verify complete artifact set
+        shell: bash
+        run: |
+          cd artifacts
+          ls -la
+          MISSING=""
+          ls *.dmg >/dev/null 2>&1 || MISSING="$MISSING dmg"
+          ls *.exe >/dev/null 2>&1 || MISSING="$MISSING exe"
+          ls *.AppImage >/dev/null 2>&1 || MISSING="$MISSING AppImage"
+          ls *.deb >/dev/null 2>&1 || MISSING="$MISSING deb"
+          [ -f latest.yml ] || MISSING="$MISSING latest.yml"
+          [ -f latest-linux.yml ] || MISSING="$MISSING latest-linux.yml"
+          [ -f latest-mac.yml ] || MISSING="$MISSING latest-mac.yml"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Incomplete artifact set — missing:$MISSING. No release will be published."
+            exit 1
+          fi
+          echo "All expected artifacts present."
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd artifacts
+          DMG=$(ls *.dmg | head -1)
+          EXE=$(ls *.exe | head -1)
+          APPIMAGE=$(ls *.AppImage | head -1)
+          DEB=$(ls *.deb | head -1)
+          DOWNLOADS="- **macOS**: ${DMG}\n- **Windows**: ${EXE}\n- **Linux**: ${APPIMAGE} or ${DEB}"
+          cd ..
+
+          # Extract this version's What's New entry (from "## vX" to the next "---").
+          # Feature releases have an entry; maintenance/patch releases do not, so
+          # fall back to a generic blurb rather than shipping an empty section.
+          awk -v ver="## v${VERSION}" '
+            index($0, ver) == 1 && (substr($0, length(ver)+1, 1) == " " || length($0) == length(ver)) { grab=1; next }
+            grab && /^---[[:space:]]*$/ { exit }
+            grab { print }
+          ' docs/WHATS_NEW.md > whatsnew.md
+          if ! grep -q "[^[:space:]]" whatsnew.md; then
+            printf '%s\n' "This is a maintenance release with bug fixes and small improvements. See the [changelog](https://github.com/o-stahl/osw-studio/blob/main/CHANGELOG.md) for the full list of changes in this version." > whatsnew.md
+          fi
+
+          printf '%b' "$DOWNLOADS" > downloads.md
+          sed "s/{{VERSION}}/${VERSION}/g" .github/desktop-release-notes.md > notes.md
+          # Replace the {{WHATS_NEW}} and {{DOWNLOADS}} placeholders with real content.
+          awk '
+            /{{WHATS_NEW}}/ { while ((getline line < "whatsnew.md") > 0) print line; next }
+            /{{DOWNLOADS}}/ { while ((getline line < "downloads.md") > 0) print line; next }
+            { print }
+          ' notes.md > notes-final.md
+          cat notes-final.md
+
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="desktop-v${{ steps.version.outputs.version }}"
+          # A leftover draft from a failed run can be replaced; a published release cannot.
+          if gh release view "$TAG" --json isDraft -q .isDraft 2>/dev/null | grep -q true; then
+            echo "Deleting leftover draft release for $TAG"
+            gh release delete "$TAG" --yes
+          elif gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists and is published. Delete it manually to re-release."
+            exit 1
+          fi
+          gh release create "$TAG" \
+            --draft \
+            --title "OSW Studio v${{ steps.version.outputs.version }}" \
+            --notes-file notes-final.md \
+            artifacts/*
+          # Flip public only after every file is uploaded — updaters never see a partial release
+          gh release edit "$TAG" --draft=false
+          echo "Release $TAG published."

@@ -1,0 +1,59 @@
+appId: com.zyr0.studio
+productName: ZYR0 Studio
+copyright: Copyright © 2026 Ilyas Khan
+
+directories:
+  output: dist
+  app: app
+
+extraMetadata:
+  main: main.js
+  author:
+    name: Ilyas Khan
+    email: ik7408008@gmail.com
+
+asar: false
+
+files:
+  - "**/*"
+  - "!**/.env"
+  - "!node_modules/@img/sharp-*/**"
+  - "!node_modules/sharp/**"
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - universal
+  icon: electron/icons/icon.icns
+  category: public.app-category.developer-tools
+  darkModeSupport: true
+  x64ArchFiles: "**/*.node"
+
+dmg:
+  artifactName: ZYR0-Studio-${version}-${arch}.${ext}
+
+win:
+  target:
+    - nsis
+  icon: electron/icons/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ZYR0-Studio-Setup-${version}.${ext}
+
+appImage:
+  artifactName: ZYR0-Studio-${version}-${arch}.${ext}
+
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: electron/icons/icon.png
+  category: Development
+
+publish:
+  provider: github
+  owner: ilyaskhan
+  repo: zyr0-studio

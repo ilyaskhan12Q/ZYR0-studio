@@ -1,0 +1,1163 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { Project, CustomTemplate, type BackendFeatures, type PromptSuggestion, type TemplateIntent } from '@/lib/vfs/types';
+import { getRuntimeBadge } from '@/lib/runtimes/registry';
+import { vfs } from '@/lib/vfs';
+import { templateService } from '@/lib/vfs/template-service';
+import { clearLegacyProjectSchema } from '@/lib/vfs/project-schema';
+import { TemplateBrowserPanel, runtimeForTemplate } from '@/components/template-browser';
+import { logger } from '@/lib/utils';
+import { sweepTemplatePreviewProjects } from '@/lib/vfs/templates/preview-project';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { ProjectCard } from './project-card';
+import { MultipagePreview } from '@/components/preview/multipage-preview';
+import { AboutModal } from '@/components/about-modal';
+import {
+  Plus,
+  FileArchive,
+  FolderOpen,
+  Upload,
+  Search,
+  LayoutGrid,
+  List,
+  ArrowUpDown,
+  Info,
+  TestTube,
+  Github,
+  MessageSquare,
+  ArrowRight,
+  ArrowLeft,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { ImportDialog, type ImportDialogSource } from '@/components/import-dialog';
+import { pickFolderSource } from '@/components/import-dialog/pick';
+import type { ApplyResult } from '@/lib/vfs/archive';
+import { toast } from 'sonner';
+import { pushProjectToServer } from '@/lib/vfs/push-project-to-server';
+import { SERVER_PROJECTS_CHANGED } from '@/lib/vfs/sync-events';
+import { refreshProjectSyncState } from '@/lib/vfs/project-sync-state';
+import { provisionBackendFeatures } from '@/lib/vfs/provision-backend-features';
+import { seedPromptSuggestions } from '@/lib/vfs/prompt-suggestions';
+import {
+  createProjectFromTemplate,
+  customTemplateToProjectTemplate,
+  getBuiltInTemplateDefinition,
+  loadBuiltInProjectTemplate,
+  BUILT_IN_TEMPLATES,
+  DEFAULT_TEMPLATE_ID,
+  type ProjectTemplate,
+} from '@/lib/vfs/project-templates';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { useGuidedTour } from '@/components/guided-tour/context';
+import { GuidedTourOverlay } from '@/components/guided-tour/overlay';
+import { configManager, migrateBackendKey } from '@/lib/config/storage';
+import { TemplateExportDialog } from '@/components/templates/template-export-dialog';
+import { ProjectSettingsModal } from '@/components/project-backend';
+import { DescribeMode } from '@/components/describe-mode';
+import { track } from '@/lib/telemetry';
+import { usePagination } from '@/lib/hooks/use-pagination';
+import { Pagination, PaginationRange } from '@/components/ui/pagination';
+
+interface ProjectManagerProps {
+  onProjectSelect: (project: Project) => void;
+  hideHeader?: boolean; // Hide header when used in PageLayout
+  hideFooter?: boolean; // Hide footer when used in PageLayout
+  autoCreate?: boolean; // Auto-open create dialog when navigating from dashboard
+  workspaceId?: string;
+}
+
+type SortOption = 'updated' | 'created' | 'name';
+type ViewMode = 'grid' | 'list';
+
+export function ProjectManager({ onProjectSelect, hideHeader = false, hideFooter = false, autoCreate = false, workspaceId }: ProjectManagerProps) {
+  const router = useRouter();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  // Handlebars rather than static: partials mean a nav or footer is written once instead of
+  // copied into every page, which is the difference the assistant pays for on a multi-page site.
+  const [newProjectTemplate, setNewProjectTemplate] = useState<string>(DEFAULT_TEMPLATE_ID);
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [createMode, setCreateMode] = useState<'quick' | 'describe' | 'template'>('quick');
+  const [templatePending, setTemplatePending] = useState<string | null>(null);
+  const [describeDirty, setDescribeDirty] = useState(false);
+
+  // The template owns the runtime now, so there is nothing separate to pick or reset.
+  const newProjectRuntime = useMemo(
+    () => runtimeForTemplate(newProjectTemplate, customTemplates),
+    [newProjectTemplate, customTemplates]
+  );
+
+  const isQuickDirty = createMode !== 'describe' && (
+    newProjectName !== '' || newProjectDescription !== '' ||
+    newProjectTemplate !== DEFAULT_TEMPLATE_ID
+  );
+  const isCreateDirty = createMode === 'describe' ? describeDirty : isQuickDirty;
+
+  const confirmDiscard = useCallback((action: () => void) => {
+    if (!isCreateDirty || window.confirm('You have unsaved changes. Discard them?')) {
+      action();
+    }
+  }, [isCreateDirty]);
+
+  // Auto-open create dialog when navigated from dashboard "New Project"
+  useEffect(() => {
+    if (autoCreate) {
+      setCreateDialogOpen(true);
+    }
+  }, [autoCreate]);
+
+  // Helper to get template name from ID for display
+  const getTemplateDisplayName = (templateId: string): string => {
+    if (templateId.startsWith('custom:')) {
+      const customId = templateId.replace('custom:', '');
+      const template = customTemplates.find(t => t.id === customId);
+      return template?.name || 'Custom Template';
+    }
+    const builtIn = BUILT_IN_TEMPLATES.find(t => t.id === templateId);
+    return builtIn?.name || 'Select a template';
+  };
+
+  const getTemplateDescription = (templateId: string): string => {
+    if (templateId.startsWith('custom:')) {
+      const customId = templateId.replace('custom:', '');
+      return customTemplates.find(t => t.id === customId)?.description || '';
+    }
+    return BUILT_IN_TEMPLATES.find(t => t.id === templateId)?.description || '';
+  };
+  const [sortBy, setSortBy] = useState<SortOption>('updated');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [previewProject, setPreviewProject] = useState<Project | null>(null);
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [templateExportProject, setTemplateExportProject] = useState<Project | null>(null);
+  const [backendProject, setBackendProject] = useState<Project | null>(null);
+  const [importSource, setImportSource] = useState<ImportDialogSource | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const { state: tourState, setProjectList, start: startTour, setTourDemoProjectId } = useGuidedTour();
+  const tourStep = tourState.currentStep?.id;
+  const tourRunning = tourState.status === 'running';
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [backgroundPullDone, setBackgroundPullDone] = useState(
+    process.env.NEXT_PUBLIC_SERVER_MODE !== 'true'
+  );
+  const [tourActionProjectId, setTourActionProjectId] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+  const demoCreationRef = useRef(false);
+  const listScrollRef = useRef<HTMLElement | null>(null);
+
+  // Derive backend enabled state from localStorage
+  const backendProjectEnabled = backendProject ? migrateBackendKey(backendProject.id) : true;
+
+  const loadCustomTemplates = useCallback(async () => {
+    try {
+      const templates = await templateService.listCustomTemplates();
+      setCustomTemplates(templates);
+    } catch (error) {
+      logger.error('Failed to load custom templates:', error);
+      // Don't show error toast - this is background loading
+    }
+  }, []);
+
+  const loadProjects = useCallback(async () => {
+    // Prevent concurrent executions
+    if (loadingRef.current) {
+      return;
+    }
+
+    loadingRef.current = true;
+    setLoading(true);
+    let localLoadOk = false;
+
+    try {
+      await vfs.init();
+
+      // A tab closed mid-preview leaves its scratch project behind, and the list has no filter of
+      // its own, so it would show up here as a project called "Preview: something".
+      await sweepTemplatePreviewProjects(vfs);
+
+      // Load local projects immediately — don't block on server sync
+      const projectList = await vfs.listProjects();
+      const sorted = projectList.sort((a, b) =>
+        b.updatedAt.getTime() - a.updatedAt.getTime()
+      );
+      setProjects(sorted);
+      setProjectList(sorted);
+
+      // Also load custom templates
+      await loadCustomTemplates();
+      localLoadOk = true;
+
+    } catch (error) {
+      logger.error('Failed to load projects:', error);
+      toast.error('Failed to load projects');
+
+    } finally {
+      setLoading(false);
+      setInitialLoadComplete(true);
+      loadingRef.current = false;
+    }
+
+    // In server mode, pull updates in the background and merge silently
+    if (localLoadOk && process.env.NEXT_PUBLIC_SERVER_MODE === 'true') {
+      try {
+        const { autoPullAllProjects, reconcileProjectsToServer, setAutoSyncWorkspaceId } = await import('@/lib/vfs/auto-sync');
+        if (workspaceId) {
+          setAutoSyncWorkspaceId(workspaceId);
+        }
+        const result = await autoPullAllProjects();
+        // Reconcile projects the server is behind on (imports, an earlier failed push, or a local
+        // edit that does not sync itself) so they stay deployable without a manual Server Sync.
+        // Self-heals every load.
+        const reconcile = await reconcileProjectsToServer(workspaceId);
+        if (result.pulled > 0 || reconcile.pushed > 0) {
+          // Silently refresh the project list with newly pulled/pushed data
+          const updated = await vfs.listProjects();
+          const sortedUpdated = updated.sort((a, b) =>
+            b.updatedAt.getTime() - a.updatedAt.getTime()
+          );
+          setProjects(sortedUpdated);
+          setProjectList(sortedUpdated);
+        }
+        if (result.conflicts.length > 0) {
+          toast.warning(
+            `${result.conflicts.length} project(s) were edited on another device. Open Server Sync to compare.`,
+            { duration: 8000 }
+          );
+        }
+        // Compute sync status once for every project, after the pull and reconcile have settled,
+        // so the card badges and the sidebar count reflect the final state rather than the
+        // mid-reconcile one. This view owns the refresh; other consumers only subscribe.
+        await refreshProjectSyncState();
+      } catch (syncErr) {
+        logger.warn('[ProjectManager] Background sync failed:', syncErr);
+      } finally {
+        setBackgroundPullDone(true);
+      }
+    }
+  }, [setProjectList, loadCustomTemplates]);
+
+  // Separate function for reloading projects without demo creation logic
+  const reloadProjects = useCallback(async () => {
+    try {
+      await vfs.init();
+      const projectList = await vfs.listProjects();
+      const sorted = projectList.sort((a, b) => 
+        b.updatedAt.getTime() - a.updatedAt.getTime()
+      );
+      setProjects(sorted);
+      setProjectList(sorted);
+    } catch (error) {
+      logger.error('Failed to reload projects:', error);
+      toast.error('Failed to reload projects');
+    }
+  }, [setProjectList]);
+
+  const createDemoProject = async () => {
+    if (demoCreationRef.current) {
+      return; // Prevent multiple demo creations
+    }
+    
+    demoCreationRef.current = true;
+    
+    try {
+      const demo = await loadBuiltInProjectTemplate('demo');
+      const demoProject = await vfs.createProject(
+        'Multi-File Demo',
+        'Interactive examples showing how HTML, CSS, and JavaScript files work together'
+      );
+      await createProjectFromTemplate(vfs, demoProject.id, demo, demo.assets);
+      toast.success('Demo project created successfully');
+      await reloadProjects();
+      onProjectSelect(demoProject);
+      return demoProject;
+    } catch (error) {
+      logger.error('Failed to create demo project:', error);
+      toast.error('Failed to create demo project');
+      demoCreationRef.current = false; // Reset on failure
+      throw error;
+    }
+  };
+
+  const handleStartTour = async () => {
+    try {
+      // Always create a fresh demo project for the tour to ensure correct file structure
+      const demo = await loadBuiltInProjectTemplate('demo');
+      const tourDemo = await vfs.createProject(
+        'Example Studios (Tour)',
+        'Demo project for guided tour'
+      );
+      await createProjectFromTemplate(vfs, tourDemo.id, demo, demo.assets);
+
+      // Store the demo project ID in tour context
+      setTourDemoProjectId(tourDemo.id);
+
+      // Reload projects to show the new demo
+      await reloadProjects();
+
+      // Start the tour
+      startTour();
+
+      logger.info('[Tour] Created tour demo project:', tourDemo.id);
+    } catch (error) {
+      logger.error('Failed to prepare for tour:', error);
+      toast.error('Failed to start tour - could not create demo project');
+    }
+  };
+
+  // Initial load only - no dependency on loadProjects to prevent re-runs
+  useEffect(() => {
+    if (!initialLoadComplete) {
+      loadProjects();
+    }
+  }, []);
+
+  // Keep the new-project template picker current when a template is imported/saved/deleted
+  // (e.g. from the Templates view), without relying on a remount or a full app reload.
+  useEffect(() => {
+    const handleTemplatesChanged = () => { loadCustomTemplates(); };
+    window.addEventListener('templatesChanged', handleTemplatesChanged);
+    return () => window.removeEventListener('templatesChanged', handleTemplatesChanged);
+  }, [loadCustomTemplates]);
+
+  // A push or pull from the Server Sync dialog changes the local projects it touched; re-read
+  // rather than leaving the gallery on the list it mounted with.
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_SERVER_MODE !== 'true') return;
+    const handleServerProjectsChanged = () => { void reloadProjects(); };
+    window.addEventListener(SERVER_PROJECTS_CHANGED, handleServerProjectsChanged);
+    return () => window.removeEventListener(SERVER_PROJECTS_CHANGED, handleServerProjectsChanged);
+  }, [reloadProjects]);
+
+  useEffect(() => {
+    if (tourRunning && tourStep !== 'create-project') {
+      if (createDialogOpen) {
+        setCreateDialogOpen(false);
+      }
+    }
+  }, [tourRunning, tourStep, createDialogOpen]);
+
+  useEffect(() => {
+    if (tourRunning && tourStep === 'project-controls' && projects.length > 0) {
+      setTourActionProjectId(projects[0].id);
+    } else {
+      setTourActionProjectId(null);
+    }
+  }, [tourRunning, tourStep, projects]);
+
+  // Handle automatic tour start for first-time users with no projects.
+  // Wait for background pull to finish so server projects are counted before
+  // deciding the user has "no projects" and auto-creating a demo.
+  useEffect(() => {
+    if (initialLoadComplete && backgroundPullDone && projects.length === 0 && !tourRunning && !configManager.hasSeenTour()) {
+      handleStartTour();
+    }
+  }, [initialLoadComplete, backgroundPullDone, projects.length, tourRunning]);
+
+  const createProject = async () => {
+    if (!newProjectName.trim()) {
+      toast.error('Please enter a project name');
+      return;
+    }
+
+    if (newProjectName.length > 50) {
+      toast.error('Project name must be 50 characters or less');
+      return;
+    }
+
+    if (newProjectDescription.length > 200) {
+      toast.error('Description must be 200 characters or less');
+      return;
+    }
+
+    if (process.env.NEXT_PUBLIC_SERVER_MODE === 'true' && !!process.env.NEXT_PUBLIC_GATEWAY_URL) {
+      try {
+        const { getAutoSyncApiUrl } = await import('@/lib/vfs/auto-sync');
+        const { apiFetch } = await import('@/lib/api/backend-status');
+        const res = await apiFetch(getAutoSyncApiUrl('/sync/status'));
+        if (res.ok) {
+          const data = await res.json();
+          const quota = data.quota?.projects;
+          if (quota && quota.used >= quota.max) {
+            toast.error(`Project limit reached (${quota.max}). Delete a project to create a new one.`);
+            return;
+          }
+        }
+      } catch (e) { logger.warn('[ProjectManager] Quota check failed:', e); }
+    }
+
+    try {
+      // Resolved before the project exists. A built-in's files are a lazily imported chunk, so a
+      // failure here would otherwise land between creating the project and filling it, leaving an
+      // empty project behind with no way to tell it apart from a deliberate one.
+      let projectTemplate: ProjectTemplate | undefined;
+      let backendFeatures: BackendFeatures | undefined;
+      let templateIntent: TemplateIntent | undefined;
+      let promptSuggestions: PromptSuggestion[] | undefined;
+
+      if (newProjectTemplate.startsWith('custom:')) {
+        const customTemplateId = newProjectTemplate.replace('custom:', '');
+        const customTemplate = customTemplates.find(t => t.id === customTemplateId);
+        if (customTemplate) {
+          projectTemplate = customTemplateToProjectTemplate(customTemplate);
+          templateIntent = customTemplate.metadata?.intent;
+          promptSuggestions = seedPromptSuggestions(customTemplate.metadata?.promptSuggestions);
+        }
+      } else {
+        // An id the catalog no longer knows falls back to blank, the same way the switch this
+        // replaced did: it can come from a stale selection rather than from a bug.
+        const definition =
+          getBuiltInTemplateDefinition(newProjectTemplate) ?? getBuiltInTemplateDefinition('blank');
+        if (definition) {
+          projectTemplate = await definition.loadProjectTemplate();
+          backendFeatures = projectTemplate.backendFeatures;
+          templateIntent = definition.metadata?.intent;
+          promptSuggestions = seedPromptSuggestions(definition.promptSuggestions);
+        }
+      }
+
+      const project = await vfs.createProject(
+        newProjectName.trim().slice(0, 50),
+        newProjectDescription.trim().slice(0, 200) || undefined
+      );
+
+      // Persist runtime in project settings and keep updated object for onProjectSelect
+      const finalProject: Project = {
+        ...project,
+        settings: { ...project.settings, runtime: newProjectRuntime, promptSuggestions },
+      };
+      await vfs.updateProject(finalProject);
+
+      if (projectTemplate) {
+        await createProjectFromTemplate(
+          vfs,
+          finalProject.id,
+          projectTemplate,
+          projectTemplate.assets
+        );
+      }
+
+      // Provision backend features if the selected template has them
+      {
+        if (backendFeatures) {
+          try {
+            await provisionBackendFeatures(finalProject.id, backendFeatures);
+          } catch (provisionError) {
+            logger.error('Failed to provision backend features:', provisionError);
+            toast.warning('Project created but backend features provisioning failed.');
+          }
+        }
+      }
+
+      // Trigger auto-sync so new project is pushed to server immediately
+      vfs.scheduleAutoSync(finalProject.id);
+
+      track('project_create', {
+        method: 'quick',
+        runtime: newProjectRuntime,
+        template: newProjectTemplate.startsWith('custom:') ? 'custom' : newProjectTemplate,
+        // Absent for an imported template, which does not declare one. Reported rather than
+        // guessed: the point of recording it is to learn which section people actually pick from.
+        template_intent: templateIntent,
+      });
+
+      toast.success('Project created successfully');
+      setCreateDialogOpen(false);
+      setCreateMode('quick');
+      setNewProjectName('');
+      setNewProjectDescription('');
+      setNewProjectTemplate('blank');
+      await reloadProjects();
+      onProjectSelect(finalProject);
+    } catch (error) {
+      logger.error('Failed to create project:', error);
+      toast.error('Failed to create project');
+    }
+  };
+
+  const deleteProject = useCallback(async (project: Project) => {
+    if (!confirm(`Are you sure you want to delete "${project.name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await vfs.deleteProject(project.id);
+      clearLegacyProjectSchema(project.id);
+      import('@/lib/vfs/auto-sync').then(m => m.autoDeleteProject(project.id)).catch(() => {});
+      toast.success('Project deleted');
+      track('project_delete');
+      await reloadProjects();
+    } catch (error) {
+      logger.error('Failed to delete project:', error);
+      toast.error('Failed to delete project');
+    }
+  }, [reloadProjects]);
+
+  const duplicateProject = useCallback(async (project: Project) => {
+    try {
+      const newProject = await vfs.duplicateProject(project.id);
+      await pushProjectToServer(newProject.id, workspaceId);
+      toast.success('Project duplicated successfully');
+      await reloadProjects();
+      onProjectSelect(newProject);
+    } catch (error) {
+      logger.error('Failed to duplicate project:', error);
+      toast.error('Failed to duplicate project');
+    }
+  }, [reloadProjects, onProjectSelect, workspaceId]);
+
+  const exportProject = useCallback(async (project: Project) => {
+    try {
+      const data = await vfs.exportProject(project.id);
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project.name.replace(/\s+/g, '-')}-export.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Project exported');
+      track('project_export', { format: 'json' });
+    } catch (error) {
+      logger.error('Failed to export project:', error);
+      toast.error('Failed to export project');
+    }
+  }, []);
+
+  const exportProjectAsZip = useCallback(async (project: Project) => {
+    try {
+      const blob = await vfs.exportProjectAsZip(project.id);
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project.name.replace(/\s+/g, '-')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Project exported as ZIP');
+      track('project_export', { format: 'zip' });
+    } catch (error) {
+      logger.error('Failed to export project as ZIP:', error);
+      toast.error('Failed to export project as ZIP');
+    }
+  }, []);
+
+  // A fresh object every time, so the dialog re-analyses whenever the user picks something new.
+  const openImport = useCallback((source: ImportDialogSource) => {
+    setImportSource(source);
+    setImportOpen(true);
+  }, []);
+
+  /**
+   * The legacy format: a `.json` export parses and writes straight through, with no preview, as it
+   * always has. People have those files, so it stays exactly as it was.
+   */
+  const importProjectJson = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (!data.project || !data.files) {
+        throw new Error('Invalid project file');
+      }
+
+      const imported = await vfs.importProject(data);
+      await pushProjectToServer(imported.id, workspaceId);
+      toast.success('Project imported successfully');
+      track('project_import', { format: 'json' });
+      await reloadProjects();
+      onProjectSelect(imported);
+    } catch (error) {
+      logger.error('Failed to import project:', error);
+      toast.error('Failed to import project');
+    }
+  };
+
+  const importProjectFromFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip,.json';
+
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      // `.json` is the one legacy format, and the only thing that may be handed to JSON.parse.
+      // Everything else goes to the preview, which reads the zip and says which importer a
+      // workspace backup or a template needs — `accept` is advisory, and this is exactly where
+      // someone reaching for a backup file starts.
+      if (/\.json$/i.test(file.name)) {
+        await importProjectJson(file);
+        return;
+      }
+      openImport({ kind: 'zip', file });
+    };
+
+    input.click();
+  };
+
+  const handleImportComplete = useCallback(async (result: ApplyResult) => {
+    try {
+      // Throws rather than returning null when the project is not there.
+      const imported = await vfs.getProject(result.projectId);
+      await pushProjectToServer(imported.id, workspaceId);
+      track('project_import', { format: importSource?.kind === 'folder' ? 'folder' : 'archive' });
+      await reloadProjects();
+      onProjectSelect(imported);
+    } catch (error) {
+      logger.error('Failed to open the imported project:', error);
+      toast.error('The project was imported, but could not be opened');
+      await reloadProjects();
+    }
+  }, [importSource, workspaceId, reloadProjects, onProjectSelect]);
+
+  const sortProjects = (projects: Project[], sortBy: SortOption): Project[] => {
+    const sorted = [...projects];
+    switch (sortBy) {
+      case 'updated':
+        return sorted.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      case 'created':
+        return sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      case 'name':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      default:
+        return sorted;
+    }
+  };
+
+  const handleProjectUpdate = useCallback(async (updatedProject: Project) => {
+    await vfs.updateProject(updatedProject);
+    vfs.scheduleAutoSync(updatedProject.id);
+    setProjects(prev => prev.map(p =>
+      p.id === updatedProject.id ? updatedProject : p
+    ));
+  }, []);
+
+  const filteredProjects = sortProjects(
+    projects.filter(project =>
+      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    sortBy
+  );
+
+  const projectsPagination = usePagination(filteredProjects, {
+    perPage: 24,
+    resetOn: [searchQuery, sortBy],
+  });
+
+  if (loading && !initialLoadComplete) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Spinner size={48} className="mx-auto text-primary" />
+          <p className="mt-4">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex flex-col ${hideHeader ? 'h-full' : 'h-[100dvh]'}`} style={{ background: `linear-gradient(var(--project-background-tint), var(--project-background-tint)), var(--background)` }}>
+      {/* Main Content */}
+      <main ref={listScrollRef} className="flex-1 min-h-0 overflow-auto">
+        <div className="h-full flex flex-col">
+            {/* Toolbar */}
+            <div className="pt-4 px-4 pb-3 sm:pt-6 sm:px-6 sm:pb-3 shrink-0">
+              <div className="mx-auto max-w-7xl flex flex-col sm:flex-row gap-3" data-tour-id="projects-actions">
+                {/* New Project */}
+                <div className="flex items-center shrink-0">
+                  <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="gap-2" data-tour-id="new-project-button">
+                    <Plus className="h-4 w-4" />
+                    <span>New</span>
+                  </Button>
+                </div>
+
+                {/* Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search projects..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center gap-2">
+                  {/* Sort */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <ArrowUpDown className="h-4 w-4" />
+                        <span className="hidden sm:inline">Sort</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48" align="end">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm">Sort by</h4>
+                        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="updated">Last Updated</SelectItem>
+                            <SelectItem value="created">Date Created</SelectItem>
+                            <SelectItem value="name">Name</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* View Mode */}
+                  <div className="flex border rounded-full">
+                    <Button
+                      variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('grid')}
+                      className="rounded-r-none rounded-l-full"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                      className="rounded-l-none rounded-r-full"
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Import — a file or a folder, since one input cannot offer both */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Upload className="h-4 w-4" />
+                        <span>Import</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={importProjectFromFile}>
+                        <FileArchive className="h-4 w-4 mr-2" />
+                        From a file
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => pickFolderSource(openImport)}>
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        From a folder
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </div>
+
+            {/* Projects Grid/List */}
+            <div className="flex-1 px-4 pt-3 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
+              <div className="mx-auto max-w-7xl">
+                {filteredProjects.length === 0 && !backgroundPullDone ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Spinner size={24} className="text-muted-foreground" />
+                    <span className="ml-3 text-muted-foreground">Loading projects...</span>
+                  </div>
+                ) : filteredProjects.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h2 className="text-xl font-semibold mb-2">
+                      {searchQuery ? 'No projects found' : 'No projects yet'}
+                    </h2>
+                    <p className="text-muted-foreground mb-6">
+                      {searchQuery
+                        ? 'Try a different search term'
+                        : 'Create your first project to get started'}
+                    </p>
+                    {!searchQuery && (
+                      <div className="flex gap-3 justify-center">
+                        <Button onClick={() => setCreateDialogOpen(true)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Project
+                        </Button>
+                        <Button variant="outline" onClick={createDemoProject}>
+                          <FolderOpen className="mr-2 h-4 w-4" />
+                          Create Demo Project
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <PaginationRange
+                      total={projectsPagination.total}
+                      rangeStart={projectsPagination.rangeStart}
+                      rangeEnd={projectsPagination.rangeEnd}
+                      totalPages={projectsPagination.totalPages}
+                      className="mb-2"
+                    />
+                    <div
+                      className={viewMode === 'grid'
+                        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+                        : 'space-y-3'}
+                      data-tour-id="projects-list"
+                    >
+                      {projectsPagination.pageItems.map(project => {
+                        if (typeof project !== 'object' || !project.id || !project.name) {
+                          logger.error('Invalid project object:', project);
+                          return null;
+                        }
+
+                        return (
+                          <ProjectCard
+                            key={project.id}
+                            project={project}
+                            onSelect={onProjectSelect}
+                            onDelete={deleteProject}
+                            onExport={exportProject}
+                            onExportZip={exportProjectAsZip}
+                            onDuplicate={duplicateProject}
+                            onPreview={setPreviewProject}
+                            onExportAsTemplate={setTemplateExportProject}
+                            onBackend={setBackendProject}
+                            onUpdate={handleProjectUpdate}
+                            viewMode={viewMode}
+                            forceMenuOpen={tourActionProjectId === project.id}
+                            highlightExport={tourRunning && tourStep === 'project-controls' && tourActionProjectId === project.id}
+                          />
+                        );
+                      })}
+                    </div>
+                    <Pagination
+                      page={projectsPagination.page}
+                      totalPages={projectsPagination.totalPages}
+                      onPageChange={projectsPagination.setPage}
+                      scrollTarget={listScrollRef}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+      </main>
+
+      {/* Footer with Navigation Buttons - Hidden on mobile */}
+      {!hideFooter && (
+        <footer className="hidden md:block border-t bg-card/50 py-3 px-6">
+          <div className="flex justify-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleStartTour}
+              disabled={tourRunning}
+              data-tour-id="footer-guided-tour"
+            >
+              <Info className="mr-2 h-4 w-4" />
+              Guided Tour
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/test-generation')}
+            >
+              <TestTube className="mr-2 h-4 w-4" />
+              Benchmark
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAboutModalOpen(true)}
+            >
+              <Info className="mr-2 h-4 w-4" />
+              About ZYR0 Studio
+            </Button>
+          </div>
+        </footer>
+      )}
+
+      <Dialog open={createDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          confirmDiscard(() => {
+            setCreateDialogOpen(false);
+            setCreateMode('quick');
+            setDescribeDirty(false);
+          });
+        } else {
+          setCreateDialogOpen(true);
+        }
+      }}>
+        <DialogContent
+          className={
+            createMode === 'describe'
+              ? "sm:max-w-5xl h-[80vh] flex flex-col p-0 gap-0"
+              : createMode === 'template'
+                ? "sm:max-w-2xl h-[80vh] flex flex-col p-0 gap-0"
+                : "sm:max-w-md"
+          }
+          onInteractOutside={(e) => { if (isCreateDirty) e.preventDefault(); }}
+          onEscapeKeyDown={(e) => {
+            if (isCreateDirty) {
+              e.preventDefault();
+              confirmDiscard(() => {
+                setCreateDialogOpen(false);
+                setCreateMode('quick');
+                setDescribeDirty(false);
+              });
+            }
+          }}
+        >
+          {createMode === 'describe' ? (
+            /* ── Describe mode header ── */
+            <DialogHeader className="px-4 py-3 border-b border-border shrink-0">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => confirmDiscard(() => { setCreateMode('quick'); setDescribeDirty(false); })}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <DialogTitle className="text-sm">Describe your project</DialogTitle>
+                <DialogDescription className="sr-only">Conversational project setup with AI</DialogDescription>
+              </div>
+            </DialogHeader>
+          ) : createMode === 'template' ? (
+            /* ── Template mode header ── */
+            <DialogHeader className="px-4 py-3 border-b border-border shrink-0">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCreateMode('quick')}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="min-w-0 flex items-baseline gap-2">
+                  <DialogTitle className="text-sm shrink-0">Choose a template</DialogTitle>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {getTemplateDisplayName(templatePending ?? newProjectTemplate)}
+                  </span>
+                </div>
+                <DialogDescription className="sr-only">
+                  Pick the template to start from. It sets the project runtime.
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+          ) : (
+            /* ── Quick mode header ── */
+            <DialogHeader>
+              <DialogTitle>Create a project</DialogTitle>
+              <DialogDescription className="sr-only">Set up a new project</DialogDescription>
+            </DialogHeader>
+          )}
+          {createMode === 'quick' ? (
+            <>
+              {/* Describe CTA — top card */}
+              <button
+                type="button"
+                onClick={() => setCreateMode('describe')}
+                className="w-full flex items-center gap-3 px-3.5 py-3 rounded-lg border border-primary/30 bg-primary/5 text-left hover:bg-primary/10 transition-colors group"
+              >
+                <div className="h-9 w-9 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-primary">Plan the project first</p>
+                  <p className="text-xs text-muted-foreground">Chat with the agent to work out what you need. Skip repetitive setup once you start building.</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
+              {/* min-w-0: this is a grid item of DialogContent, so its automatic minimum is its
+                  min-content — which the template row's nowrap description would otherwise push
+                  past the dialog's max width, stretching every sibling with it. */}
+              <div className="space-y-4 min-w-0">
+                <div>
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="name">Project name</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {newProjectName.length}/50
+                    </span>
+                  </div>
+                  <Input
+                    id="name"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value.slice(0, 50))}
+                    placeholder="My awesome website"
+                    className="mt-2"
+                    maxLength={50}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="template">Template</Label>
+                  <button
+                    id="template"
+                    type="button"
+                    onClick={() => { setTemplatePending(newProjectTemplate); setCreateMode('template'); }}
+                    className="mt-2 w-full flex items-center gap-3 rounded-md border border-input bg-background px-3 py-2 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {getTemplateDisplayName(newProjectTemplate)}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground mt-0.5">
+                        {getTemplateDescription(newProjectTemplate) || 'Browse templates'}
+                      </span>
+                    </span>
+                    <Badge
+                      className={`text-[10px] px-1.5 py-0 h-auto shrink-0 ${getRuntimeBadge(newProjectRuntime).className}`}
+                    >
+                      {getRuntimeBadge(newProjectRuntime).label}
+                    </Badge>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </button>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    The template sets the runtime. You can change it later in project settings.
+                  </p>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="description">Description (optional)</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {newProjectDescription.length}/200
+                    </span>
+                  </div>
+                  <Textarea
+                    id="description"
+                    value={newProjectDescription}
+                    onChange={(e) => setNewProjectDescription(e.target.value.slice(0, 200))}
+                    placeholder="A brief description of your project"
+                    className="mt-2 resize-none"
+                    rows={3}
+                    maxLength={200}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="sm:justify-between">
+                <Button variant="outline" onClick={() => confirmDiscard(() => { setCreateDialogOpen(false); setCreateMode('quick'); })}>
+                  Cancel
+                </Button>
+                <Button onClick={createProject}>
+                  Create project
+                </Button>
+              </DialogFooter>
+            </>
+          ) : createMode === 'template' ? (
+            <TemplateBrowserPanel
+              customTemplates={customTemplates}
+              value={newProjectTemplate}
+              onConfirm={(value) => { setNewProjectTemplate(value); setCreateMode('quick'); }}
+              onCancel={() => setCreateMode('quick')}
+              onPendingChange={setTemplatePending}
+              workspaceId={workspaceId}
+            />
+          ) : (
+            <div className="flex-1 min-h-0">
+              <DescribeMode
+                onProjectCreated={(project) => {
+                  setCreateDialogOpen(false);
+                  setCreateMode('quick');
+                  setDescribeDirty(false);
+                  reloadProjects();
+                  onProjectSelect(project);
+                }}
+                onDirtyChange={setDescribeDirty}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Modal */}
+      {previewProject && (
+        <Dialog open={!!previewProject} onOpenChange={() => setPreviewProject(null)}>
+          <DialogContent className="max-w-[90vw] sm:max-w-[85vw] lg:max-w-[80vw] 2xl:max-w-[1400px] max-h-[90vh] w-full h-full p-0 flex flex-col">
+            <DialogHeader className="p-4 border-b">
+              <DialogTitle>Preview: {previewProject.name}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden">
+              <MultipagePreview
+                projectId={previewProject.id}
+                runtime={previewProject.settings?.runtime}
+                entryPoint={previewProject.settings?.previewEntryPoint}
+                standalone
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Template Export Dialog */}
+      <TemplateExportDialog
+        project={templateExportProject}
+        open={!!templateExportProject}
+        onOpenChange={(open) => {
+          if (!open) setTemplateExportProject(null);
+        }}
+      />
+
+      {/* Project Settings Modal */}
+      {backendProject && (
+        <ProjectSettingsModal
+          project={backendProject}
+          isOpen={true}
+          onClose={() => setBackendProject(null)}
+          onProjectUpdate={(updated: Project) => setBackendProject(updated)}
+          enabled={backendProjectEnabled}
+          onToggleEnabled={(enabled: boolean) => {
+            localStorage.setItem(`osw-backend-${backendProject.id}`, String(enabled));
+            setBackendProject({ ...backendProject }); // Force re-derive enabled state
+          }}
+        />
+      )}
+
+      {/* Import Dialog — a zip or a folder becomes a new project */}
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        source={importSource}
+        target={{ kind: 'new-project' }}
+        onComplete={handleImportComplete}
+      />
+
+      {/* About Modal */}
+      <AboutModal
+        open={aboutModalOpen}
+        onOpenChange={setAboutModalOpen}
+      />
+
+      <GuidedTourOverlay location="project-manager" />
+    </div>
+  );
+}

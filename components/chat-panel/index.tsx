@@ -1,0 +1,1918 @@
+'use client';
+
+import { useState, useEffect, useRef, useMemo, useCallback, DragEvent, ClipboardEvent } from 'react';
+import { MessageSquare, Loader2, CheckCircle, XCircle, ChevronRight, FileCode, ClipboardList, Bot, RotateCcw, RefreshCw, Send, ChevronUp, ChevronDown, Code, Trash2, Brain, Image as ImageIcon, Type, Mic, Square, Plus, FileText, LogIn } from 'lucide-react';
+import type { WorkspaceMode, ActiveInterview } from '@/lib/stores/slices/project';
+import { InterviewPicker } from './interview-picker';
+import { InterviewTemplatesManager } from '@/components/interview/InterviewTemplatesManager';
+import { interviewTemplatesService } from '@/lib/interview/templates-service';
+import type { InterviewTemplate, InterviewHandoff } from '@/lib/interview/types';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import type { DebugEvent } from '@/lib/stores/types';
+import { EventProcessor, classifyBashCommand, type Turn, type ToolCall } from './event-processor';
+import { shouldShowPacingNotice, type PacingToolItem } from '@/lib/pacing-notice';
+import { configManager } from '@/lib/config/storage';
+import { X } from 'lucide-react';
+import { MarkdownRenderer } from '@/components/markdown-renderer';
+import { ChipsBlock } from './chips';
+import { PanelContainer, PanelHeader } from '@/components/ui/panel';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { ProvidersModelsView } from '@/components/providers-models';
+import { createPortal } from 'react-dom';
+import { ProjectModelsPanel } from '@/components/providers-models/project-models-panel';
+import { hasAnyConnectedProvider } from '@/lib/llm/providers/connection-status';
+import { SUGGESTION_PILLS, INLINE_SUGGESTION_COUNT } from '@/lib/constants/suggestion-pills';
+import { checkHFCapabilities, loginHF } from '@/lib/auth/hf-auth';
+import { detectDeploymentType } from '@/lib/telemetry/config';
+import { FocusContextPayload } from '@/lib/preview/types';
+import { PendingImage, PendingAudio, PendingFile } from '@/lib/llm/multi-agent-orchestrator';
+import { useAudioRecorder } from '@/lib/audio/use-audio-recorder';
+import { useSpeechRecognition } from '@/lib/audio/use-speech-recognition';
+import { AudioSpectrogram } from './audio-spectrogram';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ContentBlock } from '@/lib/llm/types';
+import type { PlacedBlock } from '@/lib/semantic-blocks/types';
+import { MessageContext } from '@/components/message-context';
+import { PermissionModeSelector } from '@/components/permissions/PermissionModeSelector';
+import { ApprovalCard } from '@/components/permissions/ApprovalCard';
+import { track } from '@/lib/telemetry';
+import { toast } from 'sonner';
+import { useWorkspaceStore } from '@/lib/stores/workspace';
+import { resolveActiveAssignment } from '@/lib/llm/models/template-store';
+
+type FocusTarget = FocusContextPayload & { timestamp: number };
+
+// Helper to render user message content (string or ContentBlock[])
+function UserMessageContent({ content, hideImages, hideAudio }: { content: string | ContentBlock[]; hideImages?: boolean; hideAudio?: boolean }) {
+  if (typeof content === 'string') {
+    return <div className="whitespace-pre-wrap">{content}</div>;
+  }
+
+  // Separate text and image blocks
+  const textBlocks = content.filter(b => b.type === 'text');
+  const imageBlocks = hideImages ? [] : content.filter(b => b.type === 'image_url');
+  const audioBlocks = hideAudio ? [] : content.filter(b => b.type === 'input_audio');
+
+  return (
+    <div className="space-y-2">
+      {/* Render text blocks */}
+      {textBlocks.map((block, index) => (
+        <div key={`text-${index}`} className="whitespace-pre-wrap">
+          {block.type === 'text' && block.text}
+        </div>
+      ))}
+
+      {/* Render images in a flex container (when not handled by MessageContext) */}
+      {imageBlocks.length > 0 && (
+        <div className="flex flex-wrap gap-2 p-1 rounded-md bg-muted/50">
+          {imageBlocks.map((block, index) => (
+            block.type === 'image_url' && (
+              <img
+                key={`img-${index}`}
+                src={block.image_url.url}
+                alt="Attached image"
+                className="h-[60px] w-auto rounded border border-border object-cover"
+              />
+            )
+          ))}
+        </div>
+      )}
+
+      {/* Render attached audio clips as inline players */}
+      {audioBlocks.map((block, index) => (
+        block.type === 'input_audio' && (
+          <audio
+            key={`aud-${index}`}
+            controls
+            src={`data:audio/${block.input_audio.format};base64,${block.input_audio.data}`}
+            className="h-9 w-full max-w-[280px]"
+          />
+        )
+      ))}
+    </div>
+  );
+}
+
+interface ChatPanelProps {
+  events: DebugEvent[];
+  onRestore?: (checkpointId: string) => void;
+  onRetry?: (checkpointId: string) => void;
+  // Input functionality
+  generating: boolean;
+  onGenerate: (prompt: string, images?: PendingImage[], audio?: PendingAudio[], files?: PendingFile[]) => void;
+  onStop: () => void;
+  onContinue?: () => void;
+  // Focus context
+  focusContext: FocusTarget | null;
+  setFocusContext: (context: FocusTarget | null) => void;
+  focusPreviewSnippet?: string;
+  // Settings
+  mode: WorkspaceMode;
+  setMode: (mode: WorkspaceMode) => void;
+  activeInterview: ActiveInterview | null;
+  onStartInterview: (template: InterviewTemplate) => void;
+  onHandoff: (handoff: InterviewHandoff) => void;
+  currentModel: string;
+  getModelDisplayName: (modelId: string) => string;
+  // Tour/lock state
+  isTourLockingInput?: boolean;
+  // Clear chat
+  onClearChat?: () => void;
+  // Close panel
+  onClose?: () => void;
+  // Model capabilities
+  supportsVision?: boolean;
+  inputModalities?: string[];
+  // Provider has credentials configured
+  providerReady?: boolean;
+  // Runtime errors
+  runtimeErrors?: string[];
+  onSendRuntimeErrors?: () => void;
+  onClearRuntimeErrors?: () => void;
+  // Semantic blocks
+  placedBlocks?: PlacedBlock[];
+  onRemovePlacedBlock?: (placementId: string) => void;
+  onClearPlacedBlocks?: () => void;
+  // Layout overrides
+  hideHeader?: boolean;
+  className?: string;
+  /** Content rendered in place of the composer (e.g. creation confirmation) */
+  composerOverlay?: React.ReactNode;
+  /** Non-dismissable system note shown in context area (consumed on next send) */
+  systemNote?: string | null;
+}
+
+function formatTokenCount(tokens: number): string {
+  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
+  if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
+  return String(tokens);
+}
+
+const toolIcons: Record<string, React.ReactNode> = {
+  bash: <ChevronRight className="h-3 w-3 text-blue-500" />,
+  write: <FileCode className="h-3 w-3 text-orange-500" />,
+  status: <CheckCircle className="h-3 w-3 text-orange-500" />,
+  agent: <Bot className="h-3 w-3 text-purple-500" />,
+};
+
+const statusIcons: Record<string, React.ReactNode> = {
+  pending: <Loader2 className="h-3 w-3 animate-spin text-gray-400" />,
+  executing: <Loader2 className="h-3 w-3 animate-spin text-blue-500" />,
+  completed: <CheckCircle className="h-3 w-3 text-green-500" />,
+  failed: <XCircle className="h-3 w-3 text-red-500" />,
+};
+
+export function ChatPanel({
+  events,
+  onRestore,
+  onRetry,
+  generating,
+  onGenerate,
+  onStop,
+  onContinue,
+  focusContext,
+  setFocusContext,
+  focusPreviewSnippet,
+  mode,
+  setMode,
+  activeInterview,
+  onStartInterview,
+  onHandoff,
+  currentModel,
+  getModelDisplayName,
+  isTourLockingInput = false,
+  onClearChat,
+  onClose,
+  supportsVision = false,
+  inputModalities = ['text'],
+  providerReady = true,
+  runtimeErrors = [],
+  onSendRuntimeErrors,
+  onClearRuntimeErrors,
+  placedBlocks,
+  onRemovePlacedBlock,
+  onClearPlacedBlocks,
+  hideHeader,
+  className,
+  composerOverlay,
+  systemNote,
+}: ChatPanelProps) {
+  const workspaceReady = useWorkspaceStore(s => s.workspaceReady);
+  const modelConfigVersion = useWorkspaceStore(s => s.modelConfigVersion);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [showProvidersManage, setShowProvidersManage] = useState(false);
+  const [providersManageTab, setProvidersManageTab] = useState<'models' | 'connections' | 'templates'>('models');
+  const openProvidersManage = useCallback((tab: 'models' | 'connections' | 'templates' = 'models') => {
+    setProvidersManageTab(tab);
+    setShowProvidersManage(true);
+  }, []);
+  // HF Space one-click sign-in: when no provider is connected and we're on an HF
+  // Space, offer "Sign in with HuggingFace" OAuth in place of the "Select provider"
+  // button. Probed once on mount, only on HF Spaces.
+  const [hfOAuth, setHfOAuth] = useState<{ oauthAvailable: boolean; clientId: string | null; scopes: string } | null>(null);
+  useEffect(() => {
+    if (providerReady) return;
+    if (detectDeploymentType() !== 'hf_space') return;
+    let cancelled = false;
+    checkHFCapabilities()
+      .then((caps) => {
+        if (!cancelled) setHfOAuth({ oauthAvailable: caps.oauthAvailable, clientId: caps.clientId, scopes: caps.scopes });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [providerReady]);
+  const handleHFSignIn = useCallback(async () => {
+    if (!hfOAuth?.clientId) return;
+    // Stash the current project id so we can restore it after the OAuth round-trip
+    // even if the redirect URL does not preserve query params.
+    try {
+      const pid = new URLSearchParams(window.location.search).get('project');
+      if (pid) sessionStorage.setItem('hf_oauth_return_project', pid);
+    } catch {}
+    try {
+      await loginHF(hfOAuth.clientId, hfOAuth.scopes);
+    } catch {
+      toast.error('Could not start HuggingFace sign-in. Please try again.');
+    }
+  }, [hfOAuth]);
+  const [showModeMenu, setShowModeMenu] = useState(false);
+  const [interviewTemplates, setInterviewTemplates] = useState<InterviewTemplate[]>([]);
+  const [interviewManagerOpen, setInterviewManagerOpen] = useState(false);
+  const [interviewManagerMode, setInterviewManagerMode] = useState<'list' | 'create'>('list');
+  const loadInterviewTemplates = useCallback(() => {
+    interviewTemplatesService.getAllTemplates().then(setInterviewTemplates).catch(() => {});
+  }, []);
+  useEffect(() => {
+    loadInterviewTemplates();
+  }, [loadInterviewTemplates]);
+  // Mobile breakpoint — the per-project model picker becomes a full-screen dialog
+  // instead of an anchored popover (which can't fill a phone screen).
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  // Resolve the single global active assignment: drives the trigger label and the
+  // voice-input (mic) gating below. Keyed off modelConfigVersion so it recomputes when a
+  // provider connects (apiKeyUpdated) or the global template/default/provider-model changes.
+  // modelConfigVersion is bumped by the root-mounted useModelConfigSignal, so this reacts for
+  // any ChatPanel host, including describe-mode outside the Workspace.
+  const resolvedAssignment = useMemo(
+    () => resolveActiveAssignment(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modelConfigVersion],
+  );
+  const effectiveAgentModel = resolvedAssignment?.agent.model ?? currentModel;
+  // The mic is gated on the project's dedicated voice-input slot (STT model /
+  // browser / off), not the agent model's input modalities.
+  const voiceInput = resolvedAssignment?.voiceInput ?? null;
+  const voiceInputEnabled = voiceInput != null;
+  // Browser slot records via the Web Speech API (live transcript); a model slot
+  // records a clip. Either way the result becomes a pending attachment, resolved
+  // to audio or transcribed text only when the message is sent.
+  const voiceIsBrowser = voiceInput === 'browser';
+
+  const MODE_CONFIG: Record<WorkspaceMode, { label: string; Icon: typeof Code; iconColor: string }> = {
+    code: { label: 'Code', Icon: Code, iconColor: 'text-orange-500' },
+    chat: { label: 'Chat', Icon: MessageSquare, iconColor: 'text-green-500' },
+    interview: { label: 'Interview', Icon: ClipboardList, iconColor: 'text-blue-500' },
+  };
+  const isScrollingProgrammatically = useRef(false);
+
+  // Prompt state — owned by ChatPanel, never leaves this component until submit
+  const [prompt, setPrompt] = useState('');
+  const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /**
+   * The starters offered above the composer.
+   *
+   * A project's own suggestions replace the generic ones rather than joining them: they were
+   * seeded by the template that made the project, and "Personal portfolio (one page)" is noise in
+   * a Spring Boot service. A project without any falls back to the generic set, which is what a
+   * blank project gets.
+   */
+  const projectSuggestions = useWorkspaceStore(s => s.promptSuggestions);
+  const suggestions = projectSuggestions.length > 0 ? projectSuggestions : SUGGESTION_PILLS;
+  const inlineSuggestions = suggestions.slice(0, INLINE_SUGGESTION_COUNT);
+  const overflowSuggestions = suggestions.slice(INLINE_SUGGESTION_COUNT);
+
+  const applyPromptSuggestion = useCallback((text: string) => {
+    setPrompt(text);
+    composerTextareaRef.current?.focus();
+  }, []);
+
+  // Connection/model-config changes re-render this panel via the store's modelConfigVersion
+  // (bumped on apiKeyUpdated + modelConfigChanged by the root-mounted useModelConfigSignal), so
+  // the pills' hasAnyConnectedProvider() is re-evaluated without a second local counter.
+
+  // Clear prompt when generation starts
+  const prevGenerating = useRef(generating);
+  if (generating && !prevGenerating.current) {
+    setPrompt('');
+  }
+  prevGenerating.current = generating;
+
+  // Image handling state
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Audio capture state — the mic shows when the project has a voice-input model.
+  const [pendingAudio, setPendingAudio] = useState<PendingAudio[]>([]);
+  const { isRecording, error: recError, analyser, start: startRecording, stop: stopRecording, cancel: cancelRecording } = useAudioRecorder();
+  // Browser on-device STT, used when the voice-input slot is set to 'browser'.
+  const speech = useSpeechRecognition();
+  // Pending text-file attachments (added via the + menu); content goes to the model.
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const supportsAudio = voiceInputEnabled;
+
+  // Handle image drop
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    if (e.dataTransfer.types.includes('application/semantic-block')) return;
+    if (!supportsVision) return;
+
+    const files = Array.from(e.dataTransfer.files).filter(f =>
+      f.type.startsWith('image/')
+    );
+
+    if (files.length > 0) {
+      track('image_attached', { source: 'drop', count: files.length });
+    }
+
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const [header, data] = dataUrl.split(',');
+        const mediaType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+
+        setPendingImages(prev => [...prev, {
+          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          data,
+          mediaType,
+          preview: dataUrl
+        }]);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [supportsVision]);
+
+  // Handle drag over
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes('application/semantic-block')) return;
+    if (supportsVision) {
+      setIsDragging(true);
+    }
+  }, [supportsVision]);
+
+  // Handle drag leave
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  // Handle paste
+  const handlePaste = useCallback((e: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!supportsVision) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    let pastedCount = 0;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          pastedCount++;
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const [header, data] = dataUrl.split(',');
+            const mediaType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+
+            setPendingImages(prev => [...prev, {
+              id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+              data,
+              mediaType,
+              preview: dataUrl
+            }]);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+    if (pastedCount > 0) {
+      track('image_attached', { source: 'paste', count: pastedCount });
+    }
+  }, [supportsVision]);
+
+  // Remove a pending image
+  const removeImage = useCallback((imageId: string) => {
+    setPendingImages(prev => prev.filter(img => img.id !== imageId));
+  }, []);
+
+  // Start recording. Browser STT listens live; a model-backed voice slot records
+  // a clip via MediaRecorder.
+  const handleStartRecording = useCallback(() => {
+    if (voiceIsBrowser) {
+      if (!speech.supported) {
+        toast.error('Speech recognition is not available in this browser');
+        return;
+      }
+      speech.start();
+    } else {
+      startRecording();
+    }
+  }, [voiceIsBrowser, speech, startRecording]);
+
+  // Stop recording and add the result as a pending attachment. Browser keeps the
+  // live transcript; a model clip is transcribed later, when the message is sent.
+  const handleStopRecording = useCallback(async () => {
+    if (voiceIsBrowser) {
+      const text = (await speech.stop()).trim();
+      if (text) {
+        setPendingAudio(prev => [...prev, {
+          id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          data: '', format: 'wav', durationMs: 0, transcript: text,
+        }]);
+      }
+      return;
+    }
+    const clip = await stopRecording();
+    if (!clip) return;
+    setPendingAudio(prev => [...prev, {
+      id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      ...clip,
+    }]);
+  }, [voiceIsBrowser, speech, stopRecording]);
+
+  // Cancel an in-progress recording (browser or media).
+  const handleCancelRecording = useCallback(() => {
+    if (voiceIsBrowser) speech.cancel();
+    else cancelRecording();
+  }, [voiceIsBrowser, speech, cancelRecording]);
+
+  const removeAudio = useCallback((id: string) => {
+    setPendingAudio(prev => prev.filter(a => a.id !== id));
+  }, []);
+
+  // --- Attachments added via the + menu ---
+  const addImageFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList) return;
+    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (files.length) track('image_attached', { source: 'picker', count: files.length });
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const [header, data] = dataUrl.split(',');
+        const mediaType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+        setPendingImages(prev => [...prev, {
+          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          data, mediaType, preview: dataUrl,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  const addTextFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList) return;
+    for (const file of Array.from(fileList)) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPendingFiles(prev => [...prev, {
+          id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          name: file.name,
+          content: (reader.result as string) ?? '',
+          size: file.size,
+        }]);
+      };
+      reader.readAsText(file);
+    }
+  }, []);
+
+  const removeFile = useCallback((id: string) => {
+    setPendingFiles(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  // Handle send with attachments (text + images + audio + files)
+  const handleSend = useCallback(() => {
+    if (pendingAudio.length) {
+      // Mirrors MultiAgentOrchestrator.execute()'s passToAgent check: the clip
+      // goes to the agent as audio when the voice slot IS the agent, or is a
+      // model matching the agent's provider/model. Otherwise it is transcribed,
+      // either on-device (browser slot, pre-captured transcript) or via the
+      // dedicated voice-input model at send time.
+      const agent = resolvedAssignment?.agent;
+      const passToAgent = voiceInput === 'agent'
+        || !!(voiceInput && typeof voiceInput === 'object' && agent && voiceInput.provider === agent.provider && voiceInput.model === agent.model);
+      const handling = passToAgent ? 'agent_audio' : (voiceIsBrowser ? 'on_device' : 'transcription');
+      track('voice_input_used', { handling });
+    }
+
+    onGenerate(
+      prompt,
+      pendingImages.length ? pendingImages : undefined,
+      pendingAudio.length ? pendingAudio : undefined,
+      pendingFiles.length ? pendingFiles : undefined,
+    );
+    setPendingImages([]);
+    setPendingAudio([]);
+    setPendingFiles([]);
+  }, [onGenerate, pendingImages, pendingAudio, pendingFiles, prompt, resolvedAssignment, voiceInput, voiceIsBrowser]);
+
+  // Listen for tour event to open provider settings
+  useEffect(() => {
+    const handleTourOpenSettings = () => {
+      setShowMobileSettings(true);
+    };
+
+    window.addEventListener('tour-open-provider-settings', handleTourOpenSettings);
+    return () => {
+      window.removeEventListener('tour-open-provider-settings', handleTourOpenSettings);
+    };
+  }, []);
+
+  const processorRef = useRef(new EventProcessor());
+
+  // Transform events into turns with chronologically ordered items (incremental)
+  const turns = useMemo(() => processorRef.current.process(events), [events]);
+
+  // Pacing notice: reassure the user when a large single-file WRITE has been
+  // running for a while (common on models without tool streaming).
+  const [showPacingNotice, setShowPacingNotice] = useState(false);
+  const isWritePacingItem = useCallback((it: PacingToolItem): boolean => {
+    const cat = (it.name === 'bash' || it.name === 'shell')
+      ? classifyBashCommand(it.command)
+      : it.name;
+    return cat === 'write';
+  }, []);
+  const pacingItems = useMemo<PacingToolItem[]>(() =>
+    turns.flatMap(t => t.items)
+      .filter(i => i.type === 'tool')
+      .map(i => {
+        const tool = i.data as ToolCall;
+        return {
+          type: 'tool',
+          timestamp: i.timestamp,
+          status: tool?.status,
+          name: tool?.name,
+          command: tool?.parameters?.command ?? tool?.parameters?.cmd,
+        };
+      }),
+    [turns]);
+
+  useEffect(() => {
+    if (!generating) {
+      setShowPacingNotice(false);
+      return;
+    }
+    let mounted = true;
+    const recompute = () => {
+      if (!mounted) return;
+      setShowPacingNotice(
+        shouldShowPacingNotice(pacingItems, Date.now(), configManager.hasDismissedPacingNotice(), isWritePacingItem)
+      );
+    };
+    recompute();
+    const intervalId = setInterval(recompute, 1000);
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+    };
+  }, [generating, pacingItems, isWritePacingItem]);
+
+  const dismissPacingNotice = useCallback(() => {
+    configManager.setPacingNoticeDismissed();
+    setShowPacingNotice(false);
+  }, []);
+
+  // Auto-scroll when turns change (throttled with requestAnimationFrame)
+  useEffect(() => {
+    if (!autoScroll || !scrollRef.current) return;
+
+    // Use requestAnimationFrame to batch scroll updates and avoid layout thrashing
+    const rafId = requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        isScrollingProgrammatically.current = true;
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        // Reset flag after scroll completes
+        setTimeout(() => {
+          isScrollingProgrammatically.current = false;
+        }, 50);
+      }
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [turns, autoScroll]);
+
+  // Enable auto-scroll when new turns arrive (user sent a message)
+  useEffect(() => {
+    if (turns.length > 0) {
+      setAutoScroll(true);
+    }
+  }, [turns.length]);
+
+  // Scroll position detection
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+
+    const handleScroll = () => {
+      // Ignore programmatic scrolls
+      if (isScrollingProgrammatically.current) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = scrollEl;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 50;
+      setAutoScroll(isAtBottom);
+    };
+
+    scrollEl.addEventListener('scroll', handleScroll);
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Toggle expanded state for an item
+  const toggleExpanded = (itemId: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  // Focus context snippet for unified context component
+  const trimmedSnippet = focusPreviewSnippet?.trim() ?? '';
+  const focusContextData = focusContext ? { domPath: focusContext.domPath, snippet: trimmedSnippet } : null;
+
+  // Runtime error card
+  const runtimeErrorHint = !generating && runtimeErrors.length > 0 ? (
+    <div
+      className="rounded-md border border-dashed border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-muted-foreground shadow-sm"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 text-foreground">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-xs uppercase tracking-wide text-destructive">runtime errors</span>
+          <span className="inline-flex items-center justify-center rounded-full bg-destructive/15 text-destructive text-[10px] font-medium px-1.5 min-w-[18px] h-[18px]">
+            {runtimeErrors.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          {onClearRuntimeErrors && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs"
+              onClick={onClearRuntimeErrors}
+              title="Dismiss runtime errors"
+            >
+              Clear
+            </Button>
+          )}
+          {onSendRuntimeErrors && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs text-destructive"
+              onClick={onSendRuntimeErrors}
+              title="Send errors to AI for correction"
+            >
+              Send
+            </Button>
+          )}
+        </div>
+      </div>
+      <pre className="mt-2 max-h-24 overflow-auto rounded border border-border/50 bg-background/90 px-2 py-1 text-[11px] text-foreground leading-relaxed">
+        <code>{runtimeErrors.map(e => `• ${e}`).join('\n')}</code>
+      </pre>
+    </div>
+  ) : null;
+
+  return (
+    <PanelContainer dataTourId="assistant-panel" className={className}>
+      {!hideHeader && (
+        <PanelHeader
+          icon={MessageSquare}
+          title="Chat"
+          color="var(--button-assistant-active)"
+          onClose={onClose}
+          panelKey="chat"
+          actions={onClearChat && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClearChat}
+              className="h-6 rounded-full border border-border/60 bg-muted/50 px-2.5 gap-1.5 md:h-5 md:w-5 md:px-0 md:border-0 md:bg-transparent md:rounded-md"
+              title="Clear chat"
+              data-tour-id="clear-chat-button"
+            >
+              <Trash2 className="h-2.5 w-2.5 md:h-3 md:w-3" />
+              <span className="text-xs md:hidden">Clear chat</span>
+            </Button>
+          )}
+        >
+          {activeInterview && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 text-blue-500 text-[11px] font-medium px-2 py-0.5">
+              <ClipboardList className="h-3 w-3 shrink-0" />
+              <span className="truncate max-w-[12rem]">{activeInterview.title}</span>
+            </span>
+          )}
+        </PanelHeader>
+      )}
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+        {showPacingNotice && (
+          <div role="status" aria-live="polite" className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <Loader2 aria-hidden="true" className="h-3 w-3 mt-0.5 shrink-0 animate-spin opacity-60" />
+            <span className="flex-1">
+              Large file writes can take a while. The agent is still working and will continue as soon as the write finishes.
+            </span>
+            <button
+              type="button"
+              onClick={dismissPacingNotice}
+              aria-label="Dismiss notice"
+              className="shrink-0 rounded p-0.5 hover:bg-muted-foreground/10"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+        {!workspaceReady && turns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 p-4">
+            <Loader2 className="h-5 w-5 animate-spin opacity-40" />
+            <span className="text-xs">Loading conversation…</span>
+          </div>
+        ) : turns.length === 0 ? (
+          <div className="text-xs text-muted-foreground text-center p-4">
+            No messages yet. Start a conversation to see it here.
+          </div>
+        ) : (
+          (() => {
+            // Per-task usage collation: show accumulated usage on the last turn of each task.
+            // Task boundaries: turns containing a non-synthetic user message.
+            const isTaskStart = (t: Turn) => t.items.some(i => i.type === 'user');
+
+            // Build a map: turnIndex → collated usage data for display.
+            // For each task group, the last turn before the next task (or end) gets the usage.
+            const usageMap = new Map<number, { usage: Turn['usage']; startTime?: number }>();
+            let taskLastUsage: Turn['usage'] = undefined;
+            let taskStartTime: number | undefined;
+
+            for (let i = 0; i < turns.length; i++) {
+              if (i > 0 && isTaskStart(turns[i])) {
+                // Task boundary — assign accumulated usage to the last turn of the previous task
+                if (taskLastUsage) {
+                  usageMap.set(i - 1, { usage: taskLastUsage, startTime: taskStartTime });
+                }
+                taskLastUsage = undefined;
+                taskStartTime = undefined;
+              }
+              if (turns[i].usage) {
+                taskLastUsage = turns[i].usage;
+                taskStartTime = turns[i].taskStartTime;
+              }
+            }
+            // Final task group — assign to last turn
+            if (taskLastUsage) {
+              usageMap.set(turns.length - 1, { usage: taskLastUsage, startTime: taskStartTime });
+            }
+
+            return turns.map((turn, idx) => {
+              const collated = usageMap.get(idx);
+              return (
+                <TurnDisplay
+                  key={turn.id}
+                  turn={turn}
+                  collatedUsage={collated?.usage}
+                  collatedTaskStartTime={collated?.startTime}
+                  onRestore={onRestore}
+                  onRetry={onRetry}
+                  onContinue={onContinue}
+                  onCancel={onStop}
+                  generating={generating}
+                  onGenerate={onGenerate}
+                  onHandoff={onHandoff}
+                  expandedItems={expandedItems}
+                  onToggleExpanded={toggleExpanded}
+                />
+              );
+            });
+          })()
+        )}
+      </div>
+
+      {/* Input — or composerOverlay when present */}
+      {composerOverlay ? (
+        <div className="p-3">{composerOverlay}</div>
+      ) : (
+      <div className="p-3 space-y-2">
+        {runtimeErrorHint}
+        {/* Hidden inputs driven by the + attach menu */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => { addImageFiles(e.target.files); e.target.value = ''; }}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.markdown,.json,.csv,.tsv,.js,.jsx,.ts,.tsx,.html,.css,.scss,.xml,.yml,.yaml,.py,.rb,.go,.rs,.java,.c,.cpp,.h,.sh,.sql,.log,.env,text/*"
+          multiple
+          className="hidden"
+          onChange={(e) => { addTextFiles(e.target.files); e.target.value = ''; }}
+        />
+        {/* Quick-start suggestions live in the context area above the input. Adding context
+            (focus, images, files) grows MessageContext below and bumps these up. Shown only for
+            a fresh, connected, idle composer (not interview or recording). */}
+        {((providerReady || hasAnyConnectedProvider()) && turns.length === 0 && !generating && mode !== 'interview' && !isRecording && !speech.isListening) && (
+          <div>
+            <div className="text-xs text-muted-foreground mb-1.5">Try one of these:</div>
+            <div className="flex flex-wrap gap-1.5">
+              {inlineSuggestions.map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => applyPromptSuggestion(pill.prompt)}
+                  className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 cursor-pointer transition-all"
+                >
+                  {pill.label}
+                </button>
+              ))}
+              {/* The rest, when a project brought more than fit on the row. A menu rather than a
+                  wider wrap: these sit directly above the composer, and a growing block of
+                  buttons pushes the thing you came here to type off the screen. */}
+              {overflowSuggestions.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`${overflowSuggestions.length} more suggestions`}
+                      className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 cursor-pointer transition-all"
+                    >
+                      …
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="max-w-xs">
+                    {overflowSuggestions.map((pill) => (
+                      <DropdownMenuItem
+                        key={pill.id}
+                        onClick={() => applyPromptSuggestion(pill.prompt)}
+                        className="text-xs"
+                      >
+                        {pill.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Unified context component — focus, blocks, images, files, voice */}
+        <MessageContext
+          focusContext={focusContextData}
+          semanticBlocks={placedBlocks}
+          images={pendingImages}
+          files={pendingFiles}
+          audioClips={pendingAudio}
+          systemNote={systemNote}
+          onClearFocus={() => setFocusContext(null)}
+          onRemoveBlock={onRemovePlacedBlock}
+          onClearBlocks={onClearPlacedBlocks}
+          onRemoveImage={removeImage}
+          onClearImages={() => setPendingImages([])}
+          onRemoveFile={removeFile}
+          onClearFiles={() => setPendingFiles([])}
+          onRemoveAudio={removeAudio}
+          onClearAudio={() => setPendingAudio([])}
+        />
+        {recError && !isRecording && (
+          <p className="text-xs text-destructive">{recError}</p>
+        )}
+        <ApprovalCard />
+        {/* Modality indicators */}
+        <div className="flex !mb-0">
+          {[
+            { key: 'text', icon: Type, label: 'Text input', enabled: true },
+            { key: 'image', icon: ImageIcon, label: inputModalities.includes('image') ? 'Image input — drop or paste images' : 'Image input — not supported by this model', enabled: inputModalities.includes('image') },
+            { key: 'audio', icon: Mic, label: voiceInputEnabled ? 'Voice input — click the mic to record' : 'Voice input — off (enable a voice model for this project)', enabled: voiceInputEnabled },
+          ].map((mod, i, arr) => (
+            <Tooltip key={mod.key}>
+              <TooltipTrigger asChild>
+                <div
+                  className={`flex items-center gap-1 px-2.5 py-1 border border-b-0 border-border text-xs cursor-default transition-colors ${
+                    mod.enabled ? 'text-foreground bg-card' : 'text-muted-foreground/30'
+                  } ${i === 0 ? 'rounded-tl-lg' : ''} ${i === arr.length - 1 ? 'rounded-tr-lg' : ''}`}
+                >
+                  <mod.icon className="h-3 w-3" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">{mod.label}</TooltipContent>
+            </Tooltip>
+          ))}
+          <div className="ml-auto flex items-center">
+            <PermissionModeSelector />
+          </div>
+        </div>
+        <div
+          className={`bg-card border shadow-sm overflow-hidden transition-all ${
+            isDragging ? 'border-primary border-2 bg-primary/5' : 'border-border'
+          }`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
+
+          {/* Drop overlay */}
+          {isDragging && supportsVision && (
+            <div className="absolute inset-0 flex items-center justify-center bg-primary/10 z-10 pointer-events-none">
+              <div className="text-primary font-medium flex items-center gap-2">
+                <ImageIcon className="h-5 w-5" />
+                Drop image here
+              </div>
+            </div>
+          )}
+
+          {mode === 'interview' && !activeInterview ? (
+            <InterviewPicker
+              templates={interviewTemplates}
+              onStart={onStartInterview}
+              disabled={!providerReady}
+              onManage={() => { setInterviewManagerMode('list'); setInterviewManagerOpen(true); }}
+              onNew={() => { setInterviewManagerMode('create'); setInterviewManagerOpen(true); }}
+            />
+          ) : (isRecording || speech.isListening) ? (
+            <div className="flex items-center gap-3 px-3 py-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse shrink-0" />
+              {voiceIsBrowser ? (
+                <span className="flex-1 min-w-0 truncate text-sm text-muted-foreground">
+                  {speech.interim || 'Listening…'}
+                </span>
+              ) : (
+                <AudioSpectrogram analyser={analyser} className="flex-1 min-w-0" />
+              )}
+              <Button variant="ghost" size="sm" onClick={handleCancelRecording} className="shrink-0">
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleStopRecording} className="shrink-0 gap-1.5">
+                <Square className="h-3.5 w-3.5" />
+                Stop
+              </Button>
+            </div>
+          ) : (
+          <div className="relative flex bg-card rounded-lg transition-all">
+              <Textarea
+                ref={composerTextareaRef}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (isTourLockingInput) {
+                    return;
+                  }
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                onPaste={handlePaste}
+                placeholder={!providerReady ? "Select a provider to start..." : supportsVision ? "Describe what you want to build... (paste or drop images)" : "Describe what you want to build..."}
+                className="flex-1 px-3 py-2 bg-transparent border-0 resize-none focus:outline-none text-sm placeholder:text-muted-foreground text-foreground"
+                rows={3}
+                disabled={generating || isTourLockingInput || !providerReady}
+              />
+              <div className="flex flex-col p-2 gap-2">
+                <Button
+                  onClick={generating ? onStop : handleSend}
+                  disabled={isTourLockingInput ? !generating : (!generating && (!prompt.trim() && pendingImages.length === 0 && pendingAudio.length === 0 && pendingFiles.length === 0 || !providerReady))}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Stop
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Send
+                    </>
+                  )}
+                </Button>
+                {!generating && (
+                  <div className="flex items-center gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={isTourLockingInput || !providerReady}
+                          title="Add attachment"
+                          className="flex-1"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" side="top">
+                        <DropdownMenuItem
+                          disabled={!supportsVision}
+                          onSelect={() => setTimeout(() => imageInputRef.current?.click(), 0)}
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                          Image
+                          {!supportsVision && <span className="ml-auto text-xs text-muted-foreground">unsupported</span>}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)}>
+                          <FileText className="h-4 w-4" />
+                          Text file
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {supportsAudio && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleStartRecording}
+                        disabled={isTourLockingInput || !providerReady}
+                        title="Record voice"
+                        className="flex-1"
+                      >
+                        <Mic className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="border-t border-border bg-muted/50 px-2 py-2">
+            <div className="flex items-center justify-between gap-2">
+              {/* Blurred backdrop behind the per-project model popover (Radix Popover
+                  has no overlay of its own), matching the drawer/dialog treatment. */}
+              {!isMobile && showMobileSettings && typeof document !== 'undefined' && createPortal(
+                <div
+                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+                  aria-hidden="true"
+                  onClick={() => setShowMobileSettings(false)}
+                />,
+                document.body,
+              )}
+              {!providerReady && !hasAnyConnectedProvider() && hfOAuth?.oauthAvailable && hfOAuth.clientId ? (
+                /* HF Space, no provider connected: one-click "Sign in with HuggingFace"
+                   OAuth (primary) with a chevron that opens the Connections tab (the
+                   default unconnected behavior). Not wrapped in the model-picker
+                   Popover, since it has its own two actions. */
+                <div
+                  className="flex items-center h-7 rounded-full overflow-hidden bg-background dark:bg-input/30 border border-primary ring-2 ring-primary/70 animate-ring-opacity"
+                  data-tour-id="provider-settings-trigger"
+                >
+                  <button
+                    type="button"
+                    onClick={handleHFSignIn}
+                    aria-label="Sign in with HuggingFace"
+                    className="flex items-center gap-1.5 h-full px-2 text-foreground text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground dark:hover:bg-input/50"
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                    Sign in with HuggingFace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openProvidersManage('connections')}
+                    aria-label="Connection options"
+                    className="h-full px-1.5 border-l border-border text-foreground transition-colors hover:bg-accent hover:text-accent-foreground dark:hover:bg-input/50 flex items-center group/chev"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5 transition-transform group-hover/chev:-translate-y-0.5" />
+                  </button>
+                </div>
+              ) : (
+              <Popover
+                open={!isMobile && showMobileSettings}
+                onOpenChange={(open) => {
+                  if (open && !hasAnyConnectedProvider()) {
+                    // No providers connected — the picker would be empty. Open the
+                    // Connections tab of the full manager instead.
+                    openProvidersManage('connections');
+                    return;
+                  }
+                  setShowMobileSettings(open);
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-7 p-0 gap-0 overflow-hidden text-xs ${!providerReady ? 'ring-2 ring-primary/70 animate-ring-opacity border-primary' : ''} ${!isMobile && showMobileSettings ? 'relative z-50' : ''}`}
+                    data-tour-id="provider-settings-trigger"
+                  >
+                    <span className="flex items-center h-full px-2">
+                      {providerReady ? getModelDisplayName(effectiveAgentModel) : 'Select provider'}
+                    </span>
+                    <span className="flex items-center h-full px-1.5 border-l border-border group/chev">
+                      {showMobileSettings
+                        ? <ChevronDown className="h-3 w-3 transition-transform group-hover/chev:translate-y-0.5" />
+                        : <ChevronUp className="h-3 w-3 transition-transform group-hover/chev:-translate-y-0.5" />}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="start"
+                  sideOffset={6}
+                  className="p-0 w-[460px] max-w-[calc(100vw-2rem)] max-h-[min(680px,var(--radix-popover-content-available-height))] overflow-hidden flex flex-col"
+                  data-tour-id="provider-settings-popup"
+                  onInteractOutside={(e) => {
+                    // Don't dismiss while the shared model drawer (a separate fixed
+                    // layer) is in use — interacting with it isn't an outside click.
+                    const original = (e as unknown as { detail?: { originalEvent?: Event } }).detail?.originalEvent;
+                    const target = (original?.target ?? e.target) as Element | null;
+                    if (target?.closest?.('[data-models-drawer]')) e.preventDefault();
+                  }}
+                >
+                  <ProjectModelsPanel
+                    onManageSettings={() => {
+                      setShowMobileSettings(false);
+                      openProvidersManage('models');
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+              )}
+
+              {/* Mobile: the per-project picker as a full-screen dialog (the anchored
+                  popover can't fill a phone screen). */}
+              {isMobile && (
+                <Dialog open={showMobileSettings} onOpenChange={setShowMobileSettings}>
+                  <DialogContent showCloseButton className="p-0 gap-0 w-[calc(100vw-1.5rem)] max-w-none h-[calc(100dvh-1.5rem)] max-h-none overflow-hidden flex flex-col">
+                    <DialogTitle className="sr-only">Models · this project</DialogTitle>
+                    <ProjectModelsPanel
+                      onManageSettings={() => {
+                        setShowMobileSettings(false);
+                        openProvidersManage('models');
+                      }}
+                      onDone={() => setShowMobileSettings(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              {/* Full "Providers & models" manager, opened in-workspace from the per-project panel.
+                  Non-modal so the body-portaled model picker / save-as drawer can scroll: Radix's
+                  modal scroll-lock (react-remove-scroll) only whitelists the dialog content, and
+                  cancels wheel events anywhere else — including the drawer. We render our own
+                  backdrop since non-modal dialogs don't get Radix's overlay. */}
+              {showProvidersManage && typeof document !== 'undefined' && createPortal(
+                <div
+                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setShowProvidersManage(false)}
+                />,
+                document.body
+              )}
+              <Dialog open={showProvidersManage} onOpenChange={setShowProvidersManage} modal={false}>
+                <DialogContent
+                  className="gap-0 flex flex-col w-[min(1080px,calc(100vw-2rem))] max-w-none h-[min(840px,calc(100vh-3rem))] overflow-hidden"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  onFocusOutside={(e) => {
+                    // Non-modal dialog: the popover this opened from returns focus to its
+                    // trigger (outside the dialog) as it closes, which would otherwise
+                    // dismiss us instantly. Closing is handled by the backdrop and Escape.
+                    e.preventDefault();
+                  }}
+                  onInteractOutside={(e) => {
+                    // The model picker / save-as drawer is a separate fixed layer
+                    // portaled to <body>; interacting with it isn't an outside click.
+                    const original = (e as unknown as { detail?: { originalEvent?: Event } }).detail?.originalEvent;
+                    const target = (original?.target ?? e.target) as Element | null;
+                    if (target?.closest?.('[data-models-drawer]')) e.preventDefault();
+                  }}
+                >
+                  <DialogTitle className="sr-only">Providers &amp; models</DialogTitle>
+                  <ProvidersModelsView initialTab={providersManageTab} />
+                </DialogContent>
+              </Dialog>
+
+              <InterviewTemplatesManager
+                open={interviewManagerOpen}
+                onOpenChange={setInterviewManagerOpen}
+                initialMode={interviewManagerMode}
+                onChanged={loadInterviewTemplates}
+              />
+
+              {!hideHeader && (() => {
+                const active = MODE_CONFIG[mode];
+                const ActiveIcon = active.Icon;
+                return (
+                  <Popover open={showModeMenu} onOpenChange={setShowModeMenu}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 p-0 gap-0 overflow-hidden text-xs">
+                        <span className="flex items-center gap-2 h-full px-2">
+                          <ActiveIcon className={`h-3 w-3 ${active.iconColor}`} />
+                          {active.label}
+                        </span>
+                        <span className="flex items-center h-full px-1.5 border-l border-border group/chev">
+                          {showModeMenu
+                            ? <ChevronDown className="h-3 w-3 transition-transform group-hover/chev:translate-y-0.5" />
+                            : <ChevronUp className="h-3 w-3 transition-transform group-hover/chev:-translate-y-0.5" />}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-40 p-1" align="end" side="top">
+                      {(['code', 'chat', 'interview'] as WorkspaceMode[]).map((m) => {
+                        const cfg = MODE_CONFIG[m];
+                        const Icon = cfg.Icon;
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => { setMode(m); setShowModeMenu(false); }}
+                            className={`flex items-center gap-2 w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted ${m === mode ? 'font-semibold bg-muted/50' : ''}`}
+                          >
+                            <Icon className={`h-3 w-3 ${cfg.iconColor}`} />
+                            {cfg.label}
+                          </button>
+                        );
+                      })}
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
+    </PanelContainer>
+  );
+}
+
+interface TurnDisplayProps {
+  turn: Turn;
+  collatedUsage?: Turn['usage'];
+  collatedTaskStartTime?: number;
+  onRestore?: (checkpointId: string) => void;
+  onRetry?: (checkpointId: string) => void;
+  onContinue?: () => void;
+  onCancel?: () => void;
+  generating?: boolean;
+  onGenerate?: (prompt: string, images?: PendingImage[]) => void;
+  onHandoff?: (handoff: InterviewHandoff) => void;
+  expandedItems: Set<string>;
+  onToggleExpanded: (itemId: string) => void;
+}
+
+function TurnDisplay({ turn, collatedUsage, collatedTaskStartTime, onRestore, onRetry, onContinue, onCancel, generating, onGenerate, onHandoff, expandedItems, onToggleExpanded }: TurnDisplayProps) {
+  return (
+    <div className="space-y-2" {...(turn.checkpointId ? { 'data-checkpoint-id': turn.checkpointId } : {})}>
+      {/* Render items in chronological order */}
+      {turn.items.map((item) => {
+        switch (item.type) {
+          case 'waiting':
+            return (
+              <div key={item.id} className="bg-muted/30 rounded-md p-2 opacity-70">
+                <div className="flex items-center gap-2 px-1">
+                  <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+                  <span className="text-xs text-muted-foreground">Waiting for response...</span>
+                </div>
+              </div>
+            );
+
+          case 'reasoning':
+            return (
+              <ReasoningDisplay
+                key={item.id}
+
+                content={item.data}
+                isComplete={item.complete === true}
+                isExpanded={expandedItems.has(item.id)}
+                onToggle={() => onToggleExpanded(item.id)}
+              />
+            );
+
+          case 'plan':
+            return (
+              <PlanDisplay
+                key={item.id}
+
+                content={item.data}
+                isExpanded={expandedItems.has(item.id)}
+                onToggle={() => onToggleExpanded(item.id)}
+              />
+            );
+
+          case 'agent':
+            return (
+              <AgentDisplay
+                key={item.id}
+
+                content={item.data}
+                isExpanded={expandedItems.has(item.id)}
+                onToggle={() => onToggleExpanded(item.id)}
+              />
+            );
+
+          case 'progress':
+            return (
+              <ProgressDisplay
+                key={item.id}
+
+                content={item.data}
+                isExpanded={expandedItems.has(item.id)}
+                onToggle={() => onToggleExpanded(item.id)}
+              />
+            );
+
+          case 'tool':
+            return (
+              <ToolDisplay
+                key={item.id}
+
+                tool={item.data as ToolCall}
+                isExpanded={expandedItems.has(item.id)}
+                onToggle={() => onToggleExpanded(item.id)}
+              />
+            );
+
+          case 'text':
+            return (
+              <div key={item.id} className="text-sm text-foreground/90 bg-muted/20 px-3 py-2 rounded">
+                <MarkdownRenderer content={item.data} />
+              </div>
+            );
+
+          case 'ask': {
+            const askData = item.data as { prompt?: string; options: string[] };
+            if (!askData.options || askData.options.length === 0) return null;
+            return (
+              <div key={item.id} className="text-sm text-foreground/90 bg-muted/20 px-3 py-2 rounded">
+                {askData.prompt && (
+                  <p className="text-sm text-foreground mb-1">{askData.prompt}</p>
+                )}
+                <ChipsBlock
+                  options={askData.options}
+                  onSelect={(value) => {
+                    track('ask_response', { via: 'chip' });
+                    onGenerate?.(value);
+                  }}
+                  disabled={!!generating}
+                />
+              </div>
+            );
+          }
+
+          case 'project_context':
+            return (
+              <div key={item.id} className={`rounded-md transition-all ${expandedItems.has(item.id) ? 'bg-muted/30 p-2' : 'p-1.5'}`}>
+                <button
+                  onClick={() => onToggleExpanded(item.id)}
+                  className="flex items-center gap-2 w-full text-left hover:bg-muted/30 rounded px-1"
+                >
+                  <ChevronRight className={`h-3 w-3 text-muted-foreground transition-transform ${expandedItems.has(item.id) ? 'rotate-90' : ''}`} />
+                  <FileCode className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Project context</span>
+                </button>
+                {expandedItems.has(item.id) && (
+                  <div className="mt-2 px-2">
+                    <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto whitespace-pre-wrap text-muted-foreground">
+                      {item.data}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            );
+
+          case 'compaction':
+            return (
+              <div key={item.id} className="flex items-center gap-2 py-2 my-1">
+                <div className="flex-1 border-t border-dashed border-muted-foreground/30" />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  Context compacted — {formatTokenCount(item.data?.preCompactTokens ?? 0)} → ~{formatTokenCount(item.data?.postCompactEstimate ?? 0)} tokens
+                </span>
+                <div className="flex-1 border-t border-dashed border-muted-foreground/30" />
+              </div>
+            );
+
+          case 'user': {
+            // Extract image blocks from content if present (to show in unified context)
+            const contentData = item.data;
+            const userImageBlocks = Array.isArray(contentData)
+              ? contentData.filter((b: ContentBlock) => b.type === 'image_url')
+              : [];
+            const userAudioBlocks = Array.isArray(contentData)
+              ? contentData.filter((b: ContentBlock) => b.type === 'input_audio')
+              : [];
+            const messageText = typeof contentData === 'string'
+              ? contentData
+              : Array.isArray(contentData)
+                ? contentData.filter((b: ContentBlock) => b.type === 'text').map((b) => (b.type === 'text' ? b.text : '')).join('')
+                : '';
+            const hasText = messageText.trim().length > 0;
+            const hasAnyContext = !!(item.focusContext || item.semanticBlocks || userImageBlocks.length > 0 || item.attachedFiles?.length || userAudioBlocks.length > 0);
+            return (
+              <div key={item.id} className="text-sm text-foreground bg-primary/10 px-3 py-2 rounded border border-primary/20">
+                <div className="font-semibold text-primary mb-1 text-xs">User</div>
+                <UserMessageContent content={contentData} hideImages={hasAnyContext} hideAudio={hasAnyContext} />
+                {hasAnyContext && (
+                  <MessageContext
+                    focusContext={item.focusContext}
+                    semanticBlocks={item.semanticBlocks}
+                    imageBlocks={userImageBlocks.length > 0 ? userImageBlocks : undefined}
+                    fileNames={item.attachedFiles}
+                    audioBlocks={userAudioBlocks.length > 0 ? userAudioBlocks : undefined}
+                    defaultOpen={userAudioBlocks.length > 0 && !hasText}
+                    readOnly
+                  />
+                )}
+              </div>
+            );
+          }
+
+          case 'synthetic_error':
+            // Auto-injected error message (e.g., malformed tool call correction)
+            // Style it like a collapsible tool call
+            return (
+              <SyntheticErrorDisplay
+                key={item.id}
+                content={item.data}
+                isExpanded={expandedItems.has(item.id)}
+                onToggle={() => onToggleExpanded(item.id)}
+              />
+            );
+
+          case 'error':
+            return (
+              <div key={item.id} className="text-sm bg-destructive/10 border border-destructive/20 px-3 py-2 rounded">
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-destructive mb-1">Error</div>
+                    <div className="text-destructive/90 whitespace-pre-wrap font-mono text-xs">
+                      {item.data?.message || JSON.stringify(item.data, null, 2)}
+                    </div>
+                    {item.data?.stack && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-destructive/70 cursor-pointer hover:text-destructive">
+                          Stack trace
+                        </summary>
+                        <pre className="text-[10px] text-destructive/60 mt-1 overflow-x-auto">
+                          {item.data.stack}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+
+          case 'error_paused':
+            return (
+              <div key={item.id} className="text-sm bg-destructive/10 border border-destructive/20 px-3 py-2 rounded">
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-destructive mb-1">{generating ? 'Task paused' : 'Error'}</div>
+                    <div className="text-destructive/90 whitespace-pre-wrap font-mono text-xs">
+                      {item.data?.message || 'An API error occurred.'}
+                    </div>
+                    {generating && (
+                      <div className="mt-2 flex gap-3">
+                        {onContinue && (
+                          <button onClick={onContinue} className="text-xs underline text-primary hover:text-primary/80">
+                            Continue
+                          </button>
+                        )}
+                        <button onClick={onCancel} className="text-xs underline text-muted-foreground hover:text-foreground/80">
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+
+          case 'interview_gate': {
+            const gate = item.data as { complete: boolean; errored?: boolean; items?: { elicit: string; passed: boolean; reason?: string }[]; handoff?: InterviewHandoff };
+            if (gate.errored) {
+              return (
+                <div key={item.id} className="text-sm bg-muted/50 border border-border px-3 py-2 rounded">
+                  <div className="flex items-start gap-2">
+                    <ClipboardList className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="text-xs text-muted-foreground">Couldn&apos;t verify the interview against its checklist — finished anyway.</div>
+                  </div>
+                </div>
+              );
+            }
+            if (gate.complete) {
+              return (
+                <div key={item.id} className="text-sm bg-green-500/10 border border-green-500/30 px-3 py-2 rounded">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-green-700 dark:text-green-400 mb-0.5">Interview complete</div>
+                      <div className="text-xs text-muted-foreground">All required items are captured in the artifact.</div>
+                      {gate.handoff && (
+                        <button
+                          onClick={() => onHandoff?.(gate.handoff!)}
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded"
+                        >
+                          <ChevronRight className="h-3 w-3" />
+                          {gate.handoff.label}
+                        </button>
+                      )}
+                      <div className="text-[11px] text-muted-foreground mt-1.5">Or clear the chat to start a new interview.</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            const unmet = (gate.items ?? []).filter(g => !g.passed);
+            return (
+              <div key={item.id} className="text-sm bg-amber-500/10 border border-amber-500/30 px-3 py-2 rounded">
+                <div className="flex items-start gap-2">
+                  <ClipboardList className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-700 dark:text-amber-400 mb-1">Not complete yet</div>
+                    <ul className="text-xs text-muted-foreground space-y-0.5">
+                      {unmet.map((u, idx) => (
+                        <li key={idx}>• {u.elicit}{u.reason ? ` — ${u.reason}` : ''}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          default:
+            return null;
+        }
+      })}
+
+      {/* Usage info and checkpoint actions — shown on last turn only */}
+      {(collatedUsage || turn.checkpointId) && (
+        <div className="flex items-center justify-between gap-2">
+          {/* Collated usage info (per-task) */}
+          {collatedUsage && (() => {
+            const cumulativeTokens = (collatedUsage.totalUsage?.totalTokens || collatedUsage.usage?.totalTokens || collatedUsage.totalTokens) || 0;
+            const cumulativeCost = collatedUsage.totalCost ?? collatedUsage.cost ?? 0;
+            const taskTokens = collatedUsage.taskTokens ?? Math.max(0, cumulativeTokens - (collatedUsage.taskTokenOffset || 0));
+            const taskCost = collatedUsage.taskCost ?? Math.max(0, cumulativeCost - (collatedUsage.taskCostOffset || 0));
+            const startTime = collatedTaskStartTime || turn.taskStartTime;
+            const durationMs = startTime && collatedUsage.timestamp
+              ? collatedUsage.timestamp - startTime
+              : 0;
+            const durationSec = durationMs > 0 ? Math.round(durationMs / 1000) : 0;
+            return (
+              <div className="text-xs text-muted-foreground">
+                Tokens: {taskTokens.toLocaleString()}
+                {taskCost > 0 && ` • Cost: $${taskCost.toFixed(4)}`}
+                {durationSec > 0 && ` • ${durationSec < 60 ? `${durationSec}s` : `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`}`}
+              </div>
+            );
+          })()}
+
+          {/* Checkpoint actions */}
+          {turn.checkpointId && (
+            <div className="flex items-center gap-1">
+              {onRestore && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onRestore(turn.checkpointId!)}
+                  className="h-6 px-2 text-xs"
+                  title="Restore to this checkpoint"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Restore
+                </Button>
+              )}
+              {onRetry && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onRetry(turn.checkpointId!)}
+                  className="h-6 px-2 text-xs"
+                  title="Restore files and retry from this checkpoint"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ToolDisplayProps {
+  tool: ToolCall;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function ToolDisplay({ tool, isExpanded, onToggle }: ToolDisplayProps) {
+  const category = (tool.name === 'bash' || tool.name === 'shell') ? classifyBashCommand(tool.parameters?.command ?? tool.parameters?.cmd) : tool.name;
+  return (
+    <div
+      className={`bg-muted/30 rounded-md transition-all ${
+        tool.status === 'executing' ? 'ring-2 ring-blue-500/20 animate-pulse' : ''
+      } p-1.5`}
+    >
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 w-full text-left hover:bg-muted/50 rounded px-1 overflow-hidden"
+      >
+        <div className="flex items-center gap-1.5 shrink-0">
+          {toolIcons[category] || <ChevronRight className="h-3 w-3" />}
+          <span className="text-xs font-mono">{category}</span>
+        </div>
+
+        {/* Tool-specific preview */}
+        {(tool.name === 'bash' || tool.name === 'shell') && (tool.parameters?.command ?? tool.parameters?.cmd) && (
+          <code className="text-xs text-muted-foreground truncate min-w-0">
+            {(() => { const c = tool.parameters.command ?? tool.parameters.cmd; return Array.isArray(c) ? c.slice(1).join(' ') : String(c); })()}
+          </code>
+        )}
+        {(tool.parameters?.path || tool.parameters?.file_path) && (
+          <code className="text-xs text-muted-foreground truncate min-w-0">
+            {tool.parameters.path || tool.parameters.file_path}
+          </code>
+        )}
+
+        <div className="ml-auto shrink-0">
+          {statusIcons[tool.status || 'completed']}
+        </div>
+      </button>
+
+      {/* Expanded view */}
+      {isExpanded && (
+        <div className="mt-2 space-y-2">
+          {/* Parameters */}
+          {tool.parameters && Object.keys(tool.parameters).length > 0 && (
+            <div className="px-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                Parameters
+              </div>
+              <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto">
+                {JSON.stringify(tool.parameters, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Result */}
+          {tool.result && (
+            <div className="px-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                Result
+              </div>
+              <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto max-h-40 overflow-y-auto">
+                {typeof tool.result === 'string' ? tool.result : JSON.stringify(tool.result, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Error */}
+          {tool.error && (
+            <div className="px-2">
+              <div className="text-[10px] uppercase tracking-wider text-destructive mb-1">
+                Error
+              </div>
+              <pre className="text-xs bg-destructive/10 text-destructive p-2 rounded overflow-x-auto">
+                {tool.error}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SyntheticErrorDisplayProps {
+  content: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function SyntheticErrorDisplay({ content, isExpanded, onToggle }: SyntheticErrorDisplayProps) {
+  return (
+    <div className={`bg-amber-500/10 rounded-md transition-all ${isExpanded ? 'p-2' : 'p-1.5'}`}>
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 w-full text-left hover:bg-amber-500/20 rounded px-1"
+      >
+        <div className="flex items-center gap-1.5">
+          <RefreshCw className="h-3 w-3 text-amber-600" />
+          <span className="text-xs font-mono">Auto-correction</span>
+        </div>
+        <div className="ml-auto">
+          <CheckCircle className="h-3 w-3 text-amber-600" />
+        </div>
+      </button>
+
+      {/* Expanded view */}
+      {isExpanded && (
+        <div className="mt-2 px-2">
+          <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+            {content}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ReasoningDisplayProps {
+  content: string;
+  isComplete: boolean;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function ReasoningDisplay({ content, isComplete, isExpanded, onToggle }: ReasoningDisplayProps) {
+  const lines = (content || '').split('\n').filter(l => l.trim());
+  const headPreview = lines.join(' ').substring(0, 80) || 'Reasoning...';
+  const tailPreview = lines.length > 0 ? lines.slice(-3).join(' ').slice(-120) : '';
+  const isStreaming = !isComplete;
+  const streamingLabel = tailPreview || 'Thinking...';
+
+  return (
+    <div className="bg-violet-500/10 rounded-md transition-all p-1.5">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 w-full text-left hover:bg-violet-500/20 rounded px-1"
+      >
+        <div className="flex items-center gap-1.5">
+          {isStreaming ? (
+            <Loader2 className="h-3 w-3 animate-spin text-violet-500" />
+          ) : (
+            <Brain className="h-3 w-3 text-violet-500" />
+          )}
+          <span className="text-xs font-mono">reasoning</span>
+        </div>
+        <code className="text-xs text-muted-foreground truncate flex-1">
+          {isStreaming ? streamingLabel : headPreview}
+        </code>
+        <div className="ml-auto">
+          <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 px-2">
+          <div className="text-xs bg-muted/50 p-2 rounded overflow-x-auto max-h-64 overflow-y-auto">
+            <MarkdownRenderer content={content || 'Thinking...'} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PlanDisplayProps {
+  content: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function PlanDisplay({ content, isExpanded, onToggle }: PlanDisplayProps) {
+  // Extract first line for preview
+  const lines = content.split('\n');
+  const preview = lines[0]?.replace(/^\*\*|\*\*$/g, '').substring(0, 50) || 'Plan';
+
+  return (
+    <div className="bg-muted/30 rounded-md transition-all p-1.5">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 w-full text-left hover:bg-muted/50 rounded px-1"
+      >
+        <div className="flex items-center gap-1.5">
+          <ClipboardList className="h-3 w-3 text-orange-500" />
+          <span className="text-xs font-mono">plan</span>
+        </div>
+        <code className="text-xs text-muted-foreground truncate flex-1">
+          {preview}
+        </code>
+        <div className="ml-auto">
+          <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 px-2">
+          <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+            {content}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface AgentDisplayProps {
+  content: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function AgentDisplay({ content, isExpanded, onToggle }: AgentDisplayProps) {
+  // Extract first line for preview
+  const lines = content.split('\n');
+  const preview = lines[0]?.replace(/^\*\*|\*\*$/g, '').replace(/^🤖\s*/, '').substring(0, 50) || 'Agent';
+
+  return (
+    <div className="bg-muted/30 rounded-md transition-all p-1.5">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 w-full text-left hover:bg-muted/50 rounded px-1"
+      >
+        <div className="flex items-center gap-1.5">
+          <Bot className="h-3 w-3 text-purple-500" />
+          <span className="text-xs font-mono">agent</span>
+        </div>
+        <code className="text-xs text-muted-foreground truncate flex-1">
+          {preview}
+        </code>
+        <div className="ml-auto">
+          <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 px-2">
+          <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+            {content}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ProgressDisplayProps {
+  content: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function ProgressDisplay({ content, isExpanded, onToggle }: ProgressDisplayProps) {
+  // Detect if this is a completion (✅) or in progress (🔄)
+  const isCompleted = content.includes('✅');
+  const preview = content.replace(/^[✅🔄]\s*/, '').substring(0, 50);
+
+  return (
+    <div className="bg-muted/30 rounded-md transition-all p-1.5">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 w-full text-left hover:bg-muted/50 rounded px-1"
+      >
+        <div className="flex items-center gap-1.5">
+          {isCompleted ? (
+            <CheckCircle className="h-3 w-3 text-green-500" />
+          ) : (
+            <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+          )}
+          <span className="text-xs font-mono">progress</span>
+        </div>
+        <code className="text-xs text-muted-foreground truncate flex-1">
+          {preview}
+        </code>
+        <div className="ml-auto">
+          <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 px-2">
+          <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+            {content}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
